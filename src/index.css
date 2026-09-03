@@ -3,12 +3,14 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root,
+  .dark {
     --bg-main: #09090b;
     --bg-card: #121215;
     --border-subtle: #27272a;
     --text-primary: #f4f4f5;
     --text-secondary: #a1a1aa;
+    color-scheme: dark;
   }
 
   .light {
@@ -17,6 +19,7 @@
     --border-subtle: #e4e4e7;
     --text-primary: #09090b;
     --text-secondary: #71717a;
+    color-scheme: light;
   }
 
   body {

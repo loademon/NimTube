@@ -34,19 +34,26 @@ chrome.runtime.onStartup.addListener(() => {
   setupContextMenu();
 });
 
+const DEFAULT_APP_URL = 'https://nimtube.2615.us';
+
 // Handle Context Menu Clicks
 if (chrome.contextMenus) {
   chrome.contextMenus.onClicked.addListener((info, tab) => {
     if (info.menuItemId === 'nimtube-download') {
       const rawUrl = info.linkUrl || info.srcUrl || info.pageUrl || tab?.url || '';
       const match = rawUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/);
-      let openUrl = 'http://localhost:5173/';
-      if (match) {
-        openUrl += `?v=${match[1]}`;
-      } else if (rawUrl.startsWith('http')) {
-        openUrl += `?url=${encodeURIComponent(rawUrl)}`;
-      }
-      chrome.tabs.create({ url: openUrl });
+      
+      chrome.storage?.local?.get(['nimtubeAppUrl'], (res) => {
+        const baseUrl = (res && res.nimtubeAppUrl) ? res.nimtubeAppUrl : DEFAULT_APP_URL;
+        const cleanBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+        let openUrl = cleanBase;
+        if (match) {
+          openUrl += `?v=${match[1]}`;
+        } else if (rawUrl.startsWith('http')) {
+          openUrl += `?url=${encodeURIComponent(rawUrl)}`;
+        }
+        chrome.tabs.create({ url: openUrl });
+      });
     }
   });
 }
@@ -55,7 +62,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     try {
       if (message.type === 'PING') {
-        sendResponse({ success: true, version: '1.0.2' });
+        sendResponse({ success: true, version: '1.0.3' });
         return;
       }
 

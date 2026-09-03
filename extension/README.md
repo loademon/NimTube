@@ -10,4 +10,4 @@ NimTube web uygulamasının merkezi bir proxy veya sunucuya ihtiyaç duymadan, d
 2. Sağ üstteki **"Geliştirici Modu" (Developer Mode)** anahtarını açın.
 3. Sol üstteki **"Paketlenmemiş Öğe Yükle" (Load unpacked)** butonuna tıklayın.
 4. Bu klasörü (`NimTube/extension`) seçin.
-5. NimTube web uygulamasını (`http://localhost:5173` veya yayındaki sitenizi) yenileyin. NimTube eklentiyi otomatik olarak algılayacaktır.
+5. NimTube web uygulamasını (`https://nimtube.2615.us` veya yerel sunucunuzu) yenileyin. NimTube eklentiyi otomatik olarak algılayacaktır.

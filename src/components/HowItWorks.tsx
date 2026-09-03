@@ -438,7 +438,7 @@ const observer = new MutationObserver(() => {
     item.onclick = (e) => {
       e.stopPropagation();
       const videoId = new URLSearchParams(window.location.search).get('v');
-      window.open(\`http://localhost:5173/?v=\${videoId}\`, '_blank');
+      window.open(\`https://nimtube.2615.us/?v=\${videoId}\`, '_blank');
     };
 
     menu.insertBefore(item, menu.firstChild);

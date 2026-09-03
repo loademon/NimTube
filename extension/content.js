@@ -1,11 +1,22 @@
 // NimTube Bridge Content Script (Manifest V3)
 
+// If running on a NimTube host, save the origin for context-menu redirects
+if (
+  window.location.hostname.includes('2615.us') ||
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1'
+) {
+  try {
+    chrome.storage?.local?.set({ nimtubeAppUrl: window.location.origin });
+  } catch (e) {}
+}
+
 // Announce presence to the web application
 function notifyReady() {
   window.postMessage({
     source: 'nimtube-extension',
     type: 'EXTENSION_READY',
-    version: '1.0.2',
+    version: '1.0.3',
   }, '*');
 }
 
@@ -137,11 +148,16 @@ if (window.location.hostname.includes('youtube.com')) {
 
         const url = window.location.href;
         const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/);
-        const targetUrl = match 
-          ? `http://localhost:5173/?v=${match[1]}` 
-          : `http://localhost:5173/?url=${encodeURIComponent(url)}`;
+        
+        chrome.storage?.local?.get(['nimtubeAppUrl'], (res) => {
+          const baseUrl = (res && res.nimtubeAppUrl) ? res.nimtubeAppUrl : 'https://nimtube.2615.us';
+          const cleanBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+          const targetUrl = match 
+            ? `${cleanBase}?v=${match[1]}` 
+            : `${cleanBase}?url=${encodeURIComponent(url)}`;
 
-        window.open(targetUrl, '_blank');
+          window.open(targetUrl, '_blank');
+        });
       });
 
       // Insert at the very top of YouTube's context menu

@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
   "name": "NimTube Bridge",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "NimTube web uygulaması için doğrudan kullanıcı IP'si üzerinden CORS engelsiz medya köprüsü.",
   "permissions": [
     "declarativeNetRequest",
     "activeTab",
-    "contextMenus"
+    "contextMenus",
+    "storage"
   ],
   "host_permissions": [
     "*://*.youtube.com/*",
@@ -31,9 +32,11 @@
   "content_scripts": [
     {
       "matches": [
+        "https://nimtube.2615.us/*",
+        "https://*.2615.us/*",
         "http://localhost:*/*",
         "http://127.0.0.1:*/*",
-        "https://*/*"
+        "*://*.youtube.com/*"
       ],
       "js": ["content.js"],
       "run_at": "document_start"

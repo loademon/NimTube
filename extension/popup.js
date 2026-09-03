@@ -1,11 +1,20 @@
 // NimTube Bridge Minimal Popup Script
 
+const DEFAULT_APP_URL = 'https://nimtube.2615.us';
+
 document.addEventListener('DOMContentLoaded', async () => {
   const ytWrap = document.getElementById('yt-wrap');
   const defaultWrap = document.getElementById('default-wrap');
   const videoName = document.getElementById('video-name');
   const dlBtn = document.getElementById('dl-btn');
   const openBtn = document.getElementById('open-btn');
+
+  let baseUrl = DEFAULT_APP_URL;
+  try {
+    const res = await chrome.storage.local.get(['nimtubeAppUrl']);
+    if (res?.nimtubeAppUrl) baseUrl = res.nimtubeAppUrl;
+  } catch (e) {}
+  const cleanBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
 
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -17,7 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         videoName.textContent = tab.title ? tab.title.replace(' - YouTube', '') : 'YouTube Videosu';
         
         dlBtn.addEventListener('click', () => {
-          chrome.tabs.create({ url: `http://localhost:5173/?v=${match[1]}` });
+          chrome.tabs.create({ url: `${cleanBase}?v=${match[1]}` });
         });
         return;
       }
@@ -27,6 +36,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   openBtn.addEventListener('click', () => {
-    chrome.tabs.create({ url: 'http://localhost:5173/' });
+    chrome.tabs.create({ url: cleanBase });
   });
 });

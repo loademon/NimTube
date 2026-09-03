@@ -120,20 +120,16 @@ export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) =>
 
       {/* Güvenlik & Gizlilik Bilgilendirmesi */}
       <div className="mb-8 rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-4 sm:p-5 text-zinc-300">
-        <div className="flex items-start gap-3 mb-3.5">
-          <div className="w-6 h-6 rounded bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center shrink-0 font-mono font-medium text-emerald-500/90 text-xs select-none">
-            !?
-          </div>
-          <div>
-            <h3 className="text-sm font-medium text-zinc-200 mb-0.5">
-              {lang === 'tr' ? 'Güvenlik, Gizlilik & Açık Kaynak Güvencesi' : 'Security, Privacy & Open Source Assurance'}
-            </h3>
-            <p className="text-xs text-zinc-400 leading-relaxed">
-              {lang === 'tr'
-                ? 'NimTube Bridge eklentisi hiçbir kişisel verinize erişmez, telemetri içermez ve açık kaynak kodları tamamen denetlenebilir.'
-                : 'NimTube Bridge never accesses your personal data, contains zero telemetry, and is 100% open source.'}
-            </p>
-          </div>
+        <div className="mb-3.5">
+          <h3 className="text-sm font-medium text-zinc-200 mb-1 flex items-center gap-2">
+            <span className="font-mono font-semibold text-emerald-500/90 select-none">!?</span>
+            <span>{lang === 'tr' ? 'Güvenlik, Gizlilik & Açık Kaynak Güvencesi' : 'Security, Privacy & Open Source Assurance'}</span>
+          </h3>
+          <p className="text-xs text-zinc-400 leading-relaxed">
+            {lang === 'tr'
+              ? 'NimTube Bridge eklentisi hiçbir kişisel verinize erişmez, telemetri içermez ve açık kaynak kodları tamamen denetlenebilir.'
+              : 'NimTube Bridge never accesses your personal data, contains zero telemetry, and is 100% open source.'}
+          </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-zinc-800/50 text-xs">

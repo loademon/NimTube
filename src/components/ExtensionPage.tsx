@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Download, Copy, Check } from 'lucide-react';
+import { ArrowLeft, Download, Copy, Check, ShieldCheck, ExternalLink } from 'lucide-react';
 import { translations, Language } from '../core/i18n';
 import { isExtensionAvailable, subscribeExtensionStatus } from '../core/extension/extensionBridge';
 
@@ -45,7 +45,7 @@ export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) =>
       </div>
 
       {/* Minimal Status & Download Row */}
-      <div className="py-3 border-y border-zinc-800/60 light:border-zinc-200 flex items-center justify-between mb-8">
+      <div className="py-3 border-y border-zinc-800/60 light:border-zinc-200 flex items-center justify-between mb-6">
         <div className="text-xs text-zinc-400 flex items-center gap-2">
           <span>{lang === 'tr' ? 'Durum:' : 'Status:'}</span>
           {hasExtension ? (
@@ -69,6 +69,59 @@ export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) =>
           <Download className="w-3.5 h-3.5" />
           <span>{t.downloadBtn}</span>
         </a>
+      </div>
+
+      {/* VirusTotal Güvenlik Kartı */}
+      <div className="mb-8 p-4 rounded-xl bg-zinc-900/40 light:bg-zinc-50 border border-zinc-800/80 light:border-zinc-200">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-800/60 light:border-zinc-200">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-zinc-100 light:text-zinc-900">
+                  {lang === 'tr' ? 'VirusTotal Güvenlik Raporu' : 'VirusTotal Security Scan'}
+                </span>
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  {lang === 'tr' ? '0 / 64 Temiz (Güvenli)' : '0 / 64 Clean (Safe)'}
+                </span>
+              </div>
+              <span className="text-[11px] text-zinc-500 font-mono block mt-0.5">
+                SHA-256: 65f10c11337ad700483d271692ea300b10fc...
+              </span>
+            </div>
+          </div>
+
+          <a
+            href="https://www.virustotal.com/gui/file/65f10c11337ad700483d271692ea300b10fced994baaa1f93a9140b90c932964/detection"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-solid px-3 py-1.5 rounded-md text-xs font-medium inline-flex items-center gap-1.5 shrink-0 self-start sm:self-center"
+          >
+            <span>{lang === 'tr' ? 'Raporu İncele' : 'View Report'}</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        </div>
+
+        <div className="pt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-zinc-400 light:text-zinc-600">
+          <span className="text-zinc-500">{lang === 'tr' ? 'Doğrulanan Motorlar:' : 'Verified Engines:'}</span>
+          <span className="inline-flex items-center gap-1">
+            <Check className="w-3 h-3 text-emerald-400" /> Microsoft Defender
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Check className="w-3 h-3 text-emerald-400" /> Kaspersky
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Check className="w-3 h-3 text-emerald-400" /> BitDefender
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Check className="w-3 h-3 text-emerald-400" /> Avast
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Check className="w-3 h-3 text-emerald-400" /> Google
+          </span>
+        </div>
       </div>
 
       {/* Policy Note */}

@@ -1,5 +1,8 @@
 # NimTube
 
+[![VirusTotal Clean](https://img.shields.io/badge/VirusTotal-0%2F64%20Clean-emerald?style=flat&logo=virustotal)](https://www.virustotal.com/gui/file/65f10c11337ad700483d271692ea300b10fced994baaa1f93a9140b90c932964/detection)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 > **NimTube**, YouTube videolarını ve ses akışlarını harici bir sunucuya ihtiyaç duymadan, doğrudan kendi tarayıcınız ve internet bağlantınız üzerinden en yüksek kalitede (4K, 1080p, MP3) indirmenizi sağlayan istemci taraflı (client-side) açık kaynaklı bir medya aracıdır.
 
 ---
@@ -67,6 +70,7 @@ YouTube indirme araçları Google'ın mağaza politikaları gereği Chrome Web M
 
 ## Güvenlik ve Gizlilik
 
+- **VirusTotal Doğrulaması:** Eklenti paketi (`nimtube-bridge.zip`) VirusTotal üzerinde taranmış olup **0 / 64 temiz** sonucuna sahiptir. [Resmi VirusTotal Raporunu İncele](https://www.virustotal.com/gui/file/65f10c11337ad700483d271692ea300b10fced994baaa1f93a9140b90c932964/detection).
 - Eklenti yalnızca `*.youtube.com` ve `*.googlevideo.com` alan adlarına erişim izni ister.
 - Tarayıcı geçmişinize, çerezlerinize, şifrelerinize veya diğer sekmelerinize kesinlikle erişmez.
 - Hiçbir analitik, telemetri veya üçüncü parti izleyici içermez.

@@ -253,10 +253,18 @@ export const App: React.FC = () => {
                 </div>
 
                 <button
-                  onClick={() => setActiveView('extension')}
+                  onClick={() => {
+                    const a = document.createElement('a');
+                    a.href = '/nimtube-bridge.zip';
+                    a.download = 'nimtube-bridge.zip';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setIsExtensionModalOpen(true);
+                  }}
                   className="font-medium hover:text-white shrink-0 text-amber-400 inline-flex items-center gap-1 transition-colors group"
                 >
-                  <span>{lang === 'tr' ? 'Eklentiyi Kur' : 'Install Extension'}</span>
+                  <span>{lang === 'tr' ? 'Eklentiyi İndir & Kur' : 'Download & Install Extension'}</span>
                   <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
                 </button>
               </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Download, Copy, Check, ExternalLink } from 'lucide-react';
 import { translations, Language } from '../core/i18n';
 import { isExtensionAvailable, subscribeExtensionStatus } from '../core/extension/extensionBridge';
+import { ExtensionModal } from './ExtensionModal';
 
 interface ExtensionPageProps {
   lang: Language;
@@ -11,6 +12,7 @@ interface ExtensionPageProps {
 export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) => {
   const [hasExtension, setHasExtension] = useState(isExtensionAvailable());
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [vtData, setVtData] = useState({
     permalink: 'https://www.virustotal.com/gui/file/65f10c11337ad700483d271692ea300b10fced994baaa1f93a9140b90c932964/detection',
     detections: 0,
@@ -43,6 +45,16 @@ export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) =>
     navigator.clipboard.writeText(url);
     setCopiedUrl(url);
     setTimeout(() => setCopiedUrl(null), 2000);
+  };
+
+  const handleDownload = () => {
+    const a = document.createElement('a');
+    a.href = '/nimtube-bridge.zip';
+    a.download = 'nimtube-bridge.zip';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setIsInstallModalOpen(true);
   };
 
   return (
@@ -97,21 +109,82 @@ export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) =>
           </a>
         </div>
 
-        <a
-          href="/nimtube-bridge.zip"
-          download="nimtube-bridge.zip"
+        <button
+          onClick={handleDownload}
           className="btn-solid px-3.5 py-1.5 rounded-md text-xs font-medium inline-flex items-center gap-1.5"
         >
           <Download className="w-3.5 h-3.5" />
           <span>{t.downloadBtn}</span>
-        </a>
+        </button>
       </div>
 
-      {/* Policy Note */}
-      <div className="mb-6 p-3 rounded-lg bg-zinc-900/30 light:bg-zinc-100 text-xs text-zinc-400 light:text-zinc-600 leading-relaxed border border-zinc-800/50 light:border-zinc-200">
-        {lang === 'tr'
-          ? 'Not: YouTube indirme araçları Google politikaları gereği Chrome Web Mağazası\'nda yayınlanamaz. Bu nedenle kurulum tarayıcının geliştirici modu üzerinden doğrudan yerel dosya ile yapılır.'
-          : 'Note: YouTube downloader extensions cannot be published on the Chrome Web Store due to platform policies. Setup is done locally via Developer Mode.'}
+      {/* Yeşil Güvenlik Bilgilendirmesi (!?) */}
+      <div className="mb-8 rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4 sm:p-5 text-zinc-300">
+        <div className="flex items-start gap-3 mb-3.5">
+          <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center shrink-0 font-mono font-bold text-emerald-400 text-sm shadow-sm shadow-emerald-500/20">
+            !?
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-emerald-400 mb-0.5">
+              {lang === 'tr' ? 'Güvenlik, Gizlilik & Açık Kaynak Güvencesi' : 'Security, Privacy & Open Source Assurance'}
+            </h3>
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              {lang === 'tr'
+                ? 'NimTube Bridge eklentisi hiçbir kişisel verinize erişmez, telemetri içermez ve açık kaynak kodları tamamen denetlenebilir.'
+                : 'NimTube Bridge never accesses your personal data, contains zero telemetry, and is 100% open source.'}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2.5 border-t border-emerald-500/20 text-xs">
+          <div className="space-y-0.5">
+            <span className="font-medium text-emerald-300 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span>{lang === 'tr' ? 'Kişisel Verilere Sıfır Erişim' : 'Zero Access to Personal Data'}</span>
+            </span>
+            <p className="text-zinc-400 text-[11px] leading-relaxed pl-3">
+              {lang === 'tr'
+                ? 'Eklenti tarayıcı geçmişinize, çerezlerinize, şifrelerinize veya diğer sekmelerinize ASLA erişemez. İzinler yalnızca *.youtube.com ve *.googlevideo.com ile sınırlandırılmıştır.'
+                : 'No access to browser history, cookies, passwords, or other tabs. Scoped strictly to *.youtube.com and *.googlevideo.com.'}
+            </p>
+          </div>
+
+          <div className="space-y-0.5">
+            <span className="font-medium text-emerald-300 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span>{lang === 'tr' ? 'Neden Web Mağazasında Yok?' : 'Why Not on Chrome Web Store?'}</span>
+            </span>
+            <p className="text-zinc-400 text-[11px] leading-relaxed pl-3">
+              {lang === 'tr'
+                ? 'Google politikaları YouTube indirme araçlarını Web Mağazası\'nda yasaklar. Bu sebeple açık kaynak medya araçları Chromium Geliştirici Modu ile yerel kurulur.'
+                : 'Google strictly bans YouTube downloaders from the Web Store. Open-source media tools are installed locally via Chromium Developer Mode.'}
+            </p>
+          </div>
+
+          <div className="space-y-0.5">
+            <span className="font-medium text-emerald-300 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span>{lang === 'tr' ? 'Sıfır Sunucu & Sıfır İzleyici' : 'Zero Servers & Zero Trackers'}</span>
+            </span>
+            <p className="text-zinc-400 text-[11px] leading-relaxed pl-3">
+              {lang === 'tr'
+                ? 'Hiçbir analitik, izleyici veya reklam kodu yoktur. Tüm veri akışı doğrudan kendi ev internetiniz ile YouTube CDN arasında gerçekleşir.'
+                : 'No analytics, trackers, or ads. All data flows directly between your home network and YouTube CDN.'}
+            </p>
+          </div>
+
+          <div className="space-y-0.5">
+            <span className="font-medium text-emerald-300 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span>{lang === 'tr' ? 'VirusTotal ile Bağımsız Onay' : 'VirusTotal Verified Clean'}</span>
+            </span>
+            <p className="text-zinc-400 text-[11px] leading-relaxed pl-3">
+              {lang === 'tr'
+                ? 'Her derlemede GitHub Actions otomatik olarak dosya hash\'ini 60+ dünya lideri antivirüs motoruna taratır (0/63 zararlı).'
+                : 'Automated CI verifies each build across 60+ antivirus engines. Confirmed 0 malicious detections.'}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Gerçek VirusTotal Tarama Görseli */}
@@ -409,15 +482,21 @@ export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) =>
           {t.back}
         </button>
 
-        <a
-          href="/nimtube-bridge.zip"
-          download="nimtube-bridge.zip"
+        <button
+          onClick={handleDownload}
           className="btn-solid px-3.5 py-1.5 rounded-md text-xs font-medium inline-flex items-center gap-1.5"
         >
           <Download className="w-3.5 h-3.5" />
           <span>{t.downloadBtn}</span>
-        </a>
+        </button>
       </div>
+
+      {/* Extension Install Steps Modal */}
+      <ExtensionModal
+        isOpen={isInstallModalOpen}
+        onClose={() => setIsInstallModalOpen(false)}
+        lang={lang}
+      />
     </div>
   );
 };

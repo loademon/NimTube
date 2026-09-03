@@ -9,6 +9,8 @@ export interface ExtensionStatus {
   latestVersion: string;
 }
 
+let pollingTimer: any = null;
+
 let currentStatus: ExtensionStatus = {
   available: false,
   version: null,
@@ -69,72 +71,6 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
   return bytes.buffer;
 }
 
-// Global listener for extension announcements
-if (typeof window !== 'undefined') {
-  window.addEventListener('message', (event) => {
-    if (event.source !== window || !event.data) return;
-    if (event.data.source === 'nimtube-extension' && event.data.type === 'EXTENSION_READY') {
-      const ver = event.data.version || null;
-      updateStatus(true, ver);
-    }
-  });
-
-  // Start continuous polling immediately so changes in chrome://extensions reflect without F5
-  startExtensionPolling(1500);
-}
-
-export function isExtensionAvailable(): boolean {
-  return currentStatus.available;
-}
-
-export function getExtensionStatus(): ExtensionStatus {
-  return currentStatus;
-}
-
-export function subscribeExtensionStatus(
-  callback: (available: boolean, status: ExtensionStatus) => void
-): () => void {
-  listeners.add(callback);
-  callback(currentStatus.available, currentStatus);
-  return () => listeners.delete(callback);
-}
-
-let pollingTimer: any = null;
-
-export function startExtensionPolling(intervalMs = 1500) {
-  if (typeof window === 'undefined') return;
-  if (pollingTimer) return;
-
-  // Initial immediate check
-  checkExtensionAvailability();
-
-  pollingTimer = setInterval(() => {
-    checkExtensionAvailability();
-  }, intervalMs);
-}
-
-export function stopExtensionPolling() {
-  if (pollingTimer) {
-    clearInterval(pollingTimer);
-    pollingTimer = null;
-  }
-}
-
-export async function checkExtensionAvailability(): Promise<boolean> {
-  try {
-    const res = await sendExtensionRequest('PING', {}, 900);
-    const isOk = Boolean(res && res.success);
-    const ver = res?.version || currentStatus.version;
-    updateStatus(isOk, ver);
-    return isOk;
-  } catch {
-    if (currentStatus.available) {
-      updateStatus(false, null);
-    }
-    return false;
-  }
-}
-
 function sendExtensionRequest(type: string, payload: any, timeoutMs = 25000): Promise<any> {
   return new Promise((resolve, reject) => {
     const requestId = Math.random().toString(36).substring(2, 10);
@@ -167,6 +103,70 @@ function sendExtensionRequest(type: string, payload: any, timeoutMs = 25000): Pr
       '*'
     );
   });
+}
+
+export async function checkExtensionAvailability(): Promise<boolean> {
+  try {
+    const res = await sendExtensionRequest('PING', {}, 900);
+    const isOk = Boolean(res && res.success);
+    const ver = res?.version || currentStatus.version;
+    updateStatus(isOk, ver);
+    return isOk;
+  } catch {
+    if (currentStatus.available) {
+      updateStatus(false, null);
+    }
+    return false;
+  }
+}
+
+export function startExtensionPolling(intervalMs = 1500) {
+  if (typeof window === 'undefined') return;
+  if (pollingTimer) return;
+
+  // Initial immediate check
+  checkExtensionAvailability();
+
+  pollingTimer = setInterval(() => {
+    checkExtensionAvailability();
+  }, intervalMs);
+}
+
+export function stopExtensionPolling() {
+  if (pollingTimer) {
+    clearInterval(pollingTimer);
+    pollingTimer = null;
+  }
+}
+
+export function isExtensionAvailable(): boolean {
+  return currentStatus.available;
+}
+
+export function getExtensionStatus(): ExtensionStatus {
+  return currentStatus;
+}
+
+export function subscribeExtensionStatus(
+  callback: (available: boolean, status: ExtensionStatus) => void
+): () => void {
+  listeners.add(callback);
+  callback(currentStatus.available, currentStatus);
+  return () => listeners.delete(callback);
+}
+
+// Global listener for extension announcements and continuous polling
+if (typeof window !== 'undefined') {
+  window.addEventListener('message', (event) => {
+    if (event.source !== window || !event.data) return;
+    if (event.data.source === 'nimtube-extension' && event.data.type === 'EXTENSION_READY') {
+      const ver = event.data.version || null;
+      updateStatus(true, ver);
+    }
+  });
+
+  // Start continuous polling immediately
+  startExtensionPolling(1500);
 }
 
 // 1. Resolve YouTube video directly through user IP via extension

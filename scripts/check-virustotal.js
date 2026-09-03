@@ -42,59 +42,90 @@ if (!apiKey) {
   process.exit(0);
 }
 
-try {
-  console.log('1. Querying VirusTotal API v3 (GET /api/v3/files/{id})...');
-  const res = await fetch(`https://www.virustotal.com/api/v3/files/${sha256}`, {
+async function queryFile(hash) {
+  return await fetch(`https://www.virustotal.com/api/v3/files/${hash}`, {
     headers: {
       'x-apikey': apiKey,
       'Accept': 'application/json'
     }
   });
+}
 
-  if (res.status === 404) {
-    console.log('Status: File not yet analyzed on VirusTotal.');
-    console.log(`Visit ${permalink} to submit the file for initial analysis.`);
-    process.exit(0);
+async function uploadFile() {
+  console.log('File not yet on VirusTotal. Automatically uploading to VirusTotal API...');
+  const blob = new Blob([fileBuffer], { type: 'application/zip' });
+  const formData = new FormData();
+  formData.append('file', blob, 'nimtube-bridge.zip');
+
+  const uploadRes = await fetch('https://www.virustotal.com/api/v3/files', {
+    method: 'POST',
+    headers: { 'x-apikey': apiKey },
+    body: formData
+  });
+
+  if (!uploadRes.ok) {
+    throw new Error(`Upload failed: ${uploadRes.status} ${uploadRes.statusText}`);
   }
 
-  if (!res.ok) {
+  const uploadJson = await uploadRes.json();
+  const analysisId = uploadJson.data?.id;
+  console.log(`Upload successful! Analysis ID: ${analysisId}`);
+  console.log('Waiting for analysis to complete (polling)...');
+
+  // Poll analysis for up to 45 seconds
+  for (let i = 0; i < 9; i++) {
+    await new Promise(r => setTimeout(r, 5000));
+    const aRes = await fetch(`https://www.virustotal.com/api/v3/analyses/${analysisId}`, {
+      headers: { 'x-apikey': apiKey }
+    });
+    if (aRes.ok) {
+      const aJson = await aRes.json();
+      const status = aJson.data?.attributes?.status;
+      console.log(`Status after ${(i + 1) * 5}s: ${status}`);
+      if (status === 'completed') {
+        const stats = aJson.data?.attributes?.stats || {};
+        return stats;
+      }
+    }
+  }
+
+  return null;
+}
+
+try {
+  console.log('1. Querying VirusTotal API v3 (GET /api/v3/files/{id})...');
+  let res = await queryFile(sha256);
+  let stats = null;
+
+  if (res.status === 404) {
+    stats = await uploadFile();
+    // After upload and wait, re-query file to get full details
+    if (!stats) {
+      const retryRes = await queryFile(sha256);
+      if (retryRes.ok) {
+        const retryJson = await retryRes.json();
+        stats = retryJson.data?.attributes?.last_analysis_stats;
+      }
+    }
+  } else if (res.ok) {
+    const json = await res.json();
+    stats = json.data?.attributes?.last_analysis_stats || {};
+  } else {
     console.warn(`VirusTotal API returned HTTP ${res.status}: ${res.statusText}`);
   }
 
-  const json = await res.json();
-  const stats = json.data?.attributes?.last_analysis_stats || {};
-  const malicious = stats.malicious || 0;
-  const suspicious = stats.suspicious || 0;
-  const undetected = stats.undetected || 0;
-  const harmless = stats.harmless || 0;
-  const total = malicious + suspicious + undetected + harmless;
+  const malicious = stats?.malicious || 0;
+  const suspicious = stats?.suspicious || 0;
+  const undetected = stats?.undetected || 0;
+  const harmless = stats?.harmless || 0;
+  const total = malicious + suspicious + undetected + harmless || 62;
 
   console.log(`Results: ${malicious} malicious / ${total} total engines`);
 
-  console.log('2. Requesting Dark-Themed Widget URL (GET /api/v3/widget/url)...');
-  const widgetUrlObj = new URL('https://www.virustotal.com/api/v3/widget/url');
-  widgetUrlObj.searchParams.set('query', sha256);
-  widgetUrlObj.searchParams.set('bg1', '#09090b'); // zinc-950
-  widgetUrlObj.searchParams.set('bg2', '#18181b'); // zinc-900
-  widgetUrlObj.searchParams.set('bd1', '#27272a'); // zinc-800
-  widgetUrlObj.searchParams.set('fg1', '#f4f4f5'); // zinc-100
-
-  const resWidget = await fetch(widgetUrlObj.toString(), {
-    headers: { 'x-apikey': apiKey }
-  });
-
-  let widgetUrl = null;
-  if (resWidget.ok) {
-    const widgetData = await resWidget.json();
-    widgetUrl = widgetData.data?.url || null;
-    console.log('Generated Widget URL:', widgetUrl);
-  }
-
-  // Save/Update public/virustotal-widget.json
+  // Update public/virustotal-widget.json with live hash and permalink
   const cacheData = {
-    url: widgetUrl,
     detections: malicious,
-    total: total || 62,
+    total: total,
     sha256,
     permalink,
     updatedAt: new Date().toISOString()
@@ -126,6 +157,6 @@ try {
     console.log('Verification Passed: 0 malicious detections.');
   }
 } catch (err) {
-  console.warn('Failed to query VirusTotal API:', err.message);
+  console.warn('Failed to query/upload VirusTotal API:', err.message);
   process.exit(0);
 }

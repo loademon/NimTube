@@ -24,198 +24,98 @@ export const HowItWorks: React.FC<HowItWorksProps> = ({ lang, onBack }) => {
         </button>
       </div>
 
-      {/* --- GÖRÜNÜM 1: GENEL BAKIŞ (ÖZENLİ & PROFESYONEL) --- */}
+      {/* --- GÖRÜNÜM 1: GENEL BAKIŞ (SADE, DOĞAL, DÜZGÜN) --- */}
       {!showDeepTech && (
         <>
           {/* Başlık & Alt Başlık */}
-          <div className="mb-8">
-            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-mono font-medium text-emerald-400 bg-emerald-950/40 border border-emerald-500/30 mb-3">
-              <span>●</span>
-              <span>{lang === 'tr' ? 'MİMARİ DÖKÜMANTASYON' : 'ARCHITECTURE DOCUMENTATION'}</span>
-            </div>
+          <div className="mb-10">
             <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-zinc-100 mb-2">
-              {lang === 'tr' ? 'NimTube Nasıl Çalışır?' : 'How NimTube Works'}
+              {lang === 'tr' ? 'Nasıl Çalışır?' : 'How It Works'}
             </h1>
             <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
               {lang === 'tr'
-                ? 'Harici bir arka uç (backend) sunucusuna ihtiyaç duymadan, doğrudan tarayıcınızın içinde çalışan %100 istemci taraflı medya çözümleme ve birleştirme motoru.'
-                : 'A 100% client-side media resolution and muxing engine running directly in your browser with zero external server dependencies.'}
+                ? 'NimTube, harici sunucu olmadan doğrudan tarayıcınızda çalışan bir medya indirme ve birleştirme aracıdır.'
+                : 'NimTube is a pure client-side media resolution and muxing tool running entirely in your browser.'}
             </p>
           </div>
 
-          {/* Mimari Akış Şeması (Minimalist Blok) */}
-          <div className="mb-10 p-4 rounded-xl border border-zinc-800/80 bg-zinc-950/60 font-mono text-[11px] text-zinc-400 space-y-2.5">
-            <div className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">
-              {lang === 'tr' ? 'Veri ve İşlem Akışı' : 'Data & Execution Flow'}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 text-center">
-              <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-                <span className="text-zinc-500 block text-[10px]">01. Handshake</span>
-                <span className="text-zinc-200 font-medium text-[11px]">VisionOS API</span>
+          {/* Maddeler */}
+          <div className="space-y-6 divide-y divide-zinc-800/60">
+            <div className="pt-6 first:pt-0 space-y-1.5">
+              <div className="flex items-baseline gap-3">
+                <span className="text-xs font-mono text-zinc-500 font-medium">01</span>
+                <h2 className="text-sm font-medium text-zinc-200">
+                  {lang === 'tr'
+                    ? 'Kullanıcı IP\'si ve Sıfır Sunucu Yükü'
+                    : 'Residential Client IP & Zero Server Overhead'}
+                </h2>
               </div>
-              <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-                <span className="text-zinc-500 block text-[10px]">02. Ağ Köprüsü</span>
-                <span className="text-zinc-200 font-medium text-[11px]">DNR Kuralları</span>
-              </div>
-              <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-                <span className="text-zinc-500 block text-[10px]">03. İndirme</span>
-                <span className="text-zinc-200 font-medium text-[11px]">4x Range Havuzu</span>
-              </div>
-              <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-                <span className="text-zinc-500 block text-[10px]">04. Birleştirme</span>
-                <span className="text-zinc-200 font-medium text-[11px]">FFmpeg Wasm</span>
-              </div>
-              <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-                <span className="text-zinc-500 block text-[10px]">05. Kayıt</span>
-                <span className="text-zinc-200 font-medium text-[11px]">Doğrudan Disk</span>
-              </div>
-            </div>
-          </div>
-
-          {/* 4 Ana Mimari Sütun */}
-          <div className="space-y-8 divide-y divide-zinc-800/60">
-            {/* 01 */}
-            <div className="pt-8 first:pt-0 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono text-zinc-500 font-medium">01</span>
-                  <h2 className="text-sm font-medium text-zinc-100">
-                    {lang === 'tr'
-                      ? 'Merkezi Sunucusuz Mimari & Ev IP\'si Doğrudanlığı'
-                      : 'Serverless Client Architecture & Native Residential IP'}
-                  </h2>
-                </div>
-                <span className="text-[10px] font-mono text-zinc-500 uppercase px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800">
-                  {lang === 'tr' ? 'Gizlilik & Ağ' : 'Privacy & Network'}
-                </span>
-              </div>
-              <p className="text-xs text-zinc-400 leading-relaxed pl-6">
+              <p className="text-xs text-zinc-400 leading-relaxed pl-7">
                 {lang === 'tr'
-                  ? 'Geleneksel video indirme siteleri, videoyu önce kendi veri merkezi sunucularına çeker. Bu yaklaşım hem kişisel verilerinizin aracı sunuculardan geçmesine yol açar hem de YouTube veri merkezi IP\'lerini hızla engellediği için indirmeler sık sık çöker. NimTube\'da aracı bir backend sunucusu yoktur; her HTTP isteği doğrudan kendi tarayıcınızdan YouTube CDN\'ine yapılır. Bant genişliği limitsizdir ve YouTube engellerine takılmaz.'
-                  : 'Traditional downloader sites proxy videos through backend datacenter servers, compromising privacy and constantly triggering YouTube IP bans. NimTube operates with zero server infrastructure; every byte flows directly from YouTube CDN to your local browser using your own home IP.'}
+                  ? 'Geleneksel siteler gibi videoları aracı sunuculardan geçirmez. Her HTTP isteği doğrudan kendi tarayıcınız ile YouTube CDN sunucuları arasında gerçekleşir. Bu sayede veri gizliliğiniz korunur ve veri merkezi IP engellemelerine takılmaz.'
+                  : 'Does not proxy streams through remote servers. Every byte flows directly between your browser and YouTube CDN, preserving privacy and avoiding datacenter IP bans.'}
               </p>
             </div>
 
-            {/* 02 */}
-            <div className="pt-8 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono text-zinc-500 font-medium">02</span>
-                  <h2 className="text-sm font-medium text-zinc-100">
-                    {lang === 'tr'
-                      ? 'WebAssembly FFmpeg ile 1080p, 2K ve 4K Kayıpsız Birleştirme'
-                      : 'Lossless 1080p & 4K Muxing via WebAssembly FFmpeg'}
-                  </h2>
-                </div>
-                <span className="text-[10px] font-mono text-zinc-500 uppercase px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800">
-                  {lang === 'tr' ? 'Medya Motoru' : 'Media Engine'}
-                </span>
+            <div className="pt-6 space-y-1.5">
+              <div className="flex items-baseline gap-3">
+                <span className="text-xs font-mono text-zinc-500 font-medium">02</span>
+                <h2 className="text-sm font-medium text-zinc-200">
+                  {lang === 'tr'
+                    ? 'WebAssembly FFmpeg ile 1080p ve 4K Birleştirme'
+                    : 'Lossless 1080p & 4K Muxing via WebAssembly FFmpeg'}
+                </h2>
               </div>
-              <p className="text-xs text-zinc-400 leading-relaxed pl-6">
+              <p className="text-xs text-zinc-400 leading-relaxed pl-7">
                 {lang === 'tr'
-                  ? 'YouTube, bant genişliği optimizasyonu için 720p üzerindeki tüm çözünürlüklerde görüntü (video-only) ve ses (audio-only) akışlarını iki ayrı dosya olarak sunar. NimTube, tarayıcınızın arka planında (Web Worker) derlenmiş FFmpeg WebAssembly motorunu çalıştırır. İki akışı yeniden kodlama (transcoding) yapmadan, saf stream kopyalama (-c copy) ile 2-3 saniyede orijinal kalitesinde tek parça MP4 olarak birleştirir.'
-                  : 'YouTube stores resolutions above 720p as separate audio and video streams. NimTube runs an in-browser WebAssembly FFmpeg worker that losslessly muxes both streams (-c copy) into a single MP4 container within seconds without quality loss.'}
+                  ? 'YouTube, 720p üzerindeki videoları görüntü ve ses olarak ayrı iki dosya halinde sunar. NimTube, tarayıcı içinde çalışan WebAssembly FFmpeg motoru sayesinde bu iki akışı yeniden kodlamadan (-c copy) saniyeler içinde kayıpsız olarak birleştirir.'
+                  : 'YouTube splits resolutions above 720p into separate video and audio streams. NimTube runs an in-browser WebAssembly FFmpeg worker to losslessly mux both streams into a single MP4 within seconds.'}
               </p>
             </div>
 
-            {/* 03 */}
-            <div className="pt-8 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono text-zinc-500 font-medium">03</span>
-                  <h2 className="text-sm font-medium text-zinc-100">
-                    {lang === 'tr'
-                      ? '4x Paralel Aralık (Range) Motoru ile Hız Sınırlamasını Aşma'
-                      : 'Bypassing Bandwidth Throttling via 4x Parallel Range Pool'}
-                  </h2>
-                </div>
-                <span className="text-[10px] font-mono text-zinc-500 uppercase px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800">
-                  {lang === 'tr' ? 'Performans' : 'Performance'}
-                </span>
+            <div className="pt-6 space-y-1.5">
+              <div className="flex items-baseline gap-3">
+                <span className="text-xs font-mono text-zinc-500 font-medium">03</span>
+                <h2 className="text-sm font-medium text-zinc-200">
+                  {lang === 'tr'
+                    ? 'Paralel Aralık (Range) İndiricisi ile Hız Sınırını Aşma'
+                    : 'Bypassing Bandwidth Throttling via Parallel Range Downloads'}
+                </h2>
               </div>
-              <p className="text-xs text-zinc-400 leading-relaxed pl-6">
+              <p className="text-xs text-zinc-400 leading-relaxed pl-7">
                 {lang === 'tr'
-                  ? 'YouTube CDN sunucuları, video oynatma adresine gelen tek parça GET isteklerini algılayıp indirme hızını oynatma bit hızına (~150-300 KB/s) sınırlar (throttling). NimTube, dosya boyutunu milisaniyeler içinde öğrenip videoyu 8 MB\'lık parçalara böler ve 4 eşzamanlı worker ile aynı anda çeker. YouTube CDN\'i bu istekleri anlık tampon akışı olarak gördüğü için internet hızınızın tamamını kullanır.'
-                  : 'YouTube CDN throttles single-stream GET downloads to streaming speeds (~150-300 KB/s). NimTube splits the file into 8 MB chunks and fetches them concurrently across 4 workers, bypassing throttle limits and utilizing your full network bandwidth.'}
+                  ? 'YouTube tekil indirmelerde hız sınırlaması uygular. NimTube, dosya boyutunu milisaniyeler içinde öğrenip videoyu 8 MB\'lık parçalara böler ve 4 eşzamanlı bağlantı açarak internet hızınızın tamamını kullanır.'
+                  : 'YouTube throttles single-stream downloads. NimTube queries file length instantly, splits streams into 8 MB chunks, and pulls them concurrently across 4 workers to saturate your line speed.'}
               </p>
             </div>
 
-            {/* 04 */}
-            <div className="pt-8 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono text-zinc-500 font-medium">04</span>
-                  <h2 className="text-sm font-medium text-zinc-100">
-                    {lang === 'tr'
-                      ? 'File System Access API ile Sıfır Bellek (RAM) Şişmesi'
-                      : 'Zero-Memory Leaks via File System Access API Streaming'}
-                  </h2>
-                </div>
-                <span className="text-[10px] font-mono text-zinc-500 uppercase px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800">
-                  {lang === 'tr' ? 'Bellek Yönetimi' : 'Memory Control'}
-                </span>
+            <div className="pt-6 space-y-1.5">
+              <div className="flex items-baseline gap-3">
+                <span className="text-xs font-mono text-zinc-500 font-medium">04</span>
+                <h2 className="text-sm font-medium text-zinc-200">
+                  {lang === 'tr'
+                    ? 'File System Access ile Doğrudan Diske Yazma'
+                    : 'Direct Disk Streaming via File System Access API'}
+                </h2>
               </div>
-              <p className="text-xs text-zinc-400 leading-relaxed pl-6">
+              <p className="text-xs text-zinc-400 leading-relaxed pl-7">
                 {lang === 'tr'
-                  ? 'Büyük 4K videolar ve uzun süreli kayıtlar gigabaytlarca veri tutar. Standart web siteleri bu veriyi tarayıcının RAM belleğinde biriktirdiği için sekme bir süre sonra çöker (Out of Memory). NimTube, Chromium tabanlı tarayıcılarda File System Access API\'sini kullanarak indirilen parçaları anlık olarak diske yazar; böylece tarayıcının RAM tüketimi 50 MB\'ın altında sabit kalır.'
-                  : 'Large 4K files can exhaust browser memory when held in RAM. NimTube utilizes the Chromium File System Access API to stream chunks directly to disk as they arrive, keeping RAM consumption under 50 MB regardless of file size.'}
+                  ? 'Büyük video dosyaları tarayıcının RAM belleğinde biriktirilmez; File System Access API kullanılarak indirilen parçalar anlık olarak diske yazılır ve bellek tüketimi 50 MB altında sabit kalır.'
+                  : 'Large video files are not held in browser memory. Using the File System Access API, chunks are written directly to disk as they arrive, keeping RAM usage below 50 MB.'}
               </p>
-            </div>
-          </div>
-
-          {/* Karşılaştırma Tablosu */}
-          <div className="mt-12 p-5 rounded-xl border border-zinc-800/80 bg-zinc-950/40 space-y-3">
-            <h3 className="text-xs font-semibold text-zinc-200 uppercase tracking-wider">
-              {lang === 'tr' ? 'Geleneksel İndiriciler vs. NimTube' : 'Traditional Downloaders vs. NimTube'}
-            </h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-[11px] text-left">
-                <thead>
-                  <tr className="border-b border-zinc-800 text-zinc-500">
-                    <th className="pb-2 font-medium">{lang === 'tr' ? 'Kriter' : 'Metric'}</th>
-                    <th className="pb-2 font-medium">{lang === 'tr' ? 'Geleneksel İndiriciler' : 'Traditional Sites'}</th>
-                    <th className="pb-2 font-medium text-emerald-400">NimTube</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-800/50 text-zinc-400">
-                  <tr>
-                    <td className="py-2 text-zinc-300 font-medium">{lang === 'tr' ? 'Gizlilik & Güvenlik' : 'Privacy'}</td>
-                    <td className="py-2 text-zinc-500">{lang === 'tr' ? 'Veriler üçüncü parti sunucuda işlenir' : 'Proxied via 3rd-party servers'}</td>
-                    <td className="py-2 text-emerald-400 font-medium">{lang === 'tr' ? '%100 Yerel (Ev IP\'si)' : '100% Local (Client IP)'}</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 text-zinc-300 font-medium">{lang === 'tr' ? '1080p / 4K Kalite' : 'Max Resolution'}</td>
-                    <td className="py-2 text-zinc-500">{lang === 'tr' ? 'Genelde 720p sınırlandırılmış' : 'Usually capped at 720p'}</td>
-                    <td className="py-2 text-emerald-400 font-medium">{lang === 'tr' ? '4K 60FPS / Kayıpsız Orijinal' : '4K 60FPS Lossless'}</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 text-zinc-300 font-medium">{lang === 'tr' ? 'İndirme Hızı' : 'Download Speed'}</td>
-                    <td className="py-2 text-zinc-500">{lang === 'tr' ? 'Sunucu kotası & yavaş kuyruk' : 'Throttled by server bandwidth'}</td>
-                    <td className="py-2 text-emerald-400 font-medium">{lang === 'tr' ? '4x Paralel Tam Hat Hızı' : '4x Parallel Full Line Speed'}</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 text-zinc-300 font-medium">{lang === 'tr' ? 'Sunucu Maliyeti' : 'Server Overhead'}</td>
-                    <td className="py-2 text-zinc-500">{lang === 'tr' ? 'Yüksek CPU / Bant genişliği' : 'High compute & bandwidth'}</td>
-                    <td className="py-2 text-emerald-400 font-medium">{lang === 'tr' ? '0 TL (Statik İstemci)' : '0$ (Static Client)'}</td>
-                  </tr>
-                </tbody>
-              </table>
             </div>
           </div>
 
           {/* Alt Bağlantı: Kodlu Teknik Detay */}
-          <div className="mt-10 pt-6 border-t border-zinc-800/60 flex items-center justify-between">
-            <span className="text-xs text-zinc-500">
-              {lang === 'tr' ? 'Kaynak kodları ve HTTP başlık detayları:' : 'Source code & HTTP header specs:'}
-            </span>
+          <div className="mt-10 pt-6 border-t border-zinc-800/60 flex justify-end">
             <button
               onClick={() => {
                 setShowDeepTech(true);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              className="text-xs text-zinc-300 hover:text-white inline-flex items-center gap-1.5 transition-colors group font-medium"
+              className="text-xs text-zinc-400 hover:text-zinc-200 inline-flex items-center gap-1.5 transition-colors group"
             >
-              <span>{lang === 'tr' ? 'Derin Teknik Dökümantasyon & Kod İncelemesi' : 'Deep Technical Specs & Code Snippets'}</span>
+              <span>{lang === 'tr' ? 'Detaylı Teknik Açıklama & Kodlar' : 'Detailed Technical Specs & Code'}</span>
               <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
             </button>
           </div>

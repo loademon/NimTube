@@ -11,17 +11,7 @@ interface ExtensionPageProps {
 export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) => {
   const [hasExtension, setHasExtension] = useState(isExtensionAvailable());
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
-  const [vtWidgetUrl, setVtWidgetUrl] = useState<string | null>(null);
   const t = translations[lang].extensionPage;
-
-  useEffect(() => {
-    fetch('/virustotal-widget.json')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data?.url) setVtWidgetUrl(data.url);
-      })
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     return subscribeExtensionStatus((active) => setHasExtension(active));
@@ -101,35 +91,6 @@ export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) =>
           ? 'Not: YouTube indirme araçları Google politikaları gereği Chrome Web Mağazası\'nda yayınlanamaz. Bu nedenle kurulum tarayıcının geliştirici modu üzerinden doğrudan yerel dosya ile yapılır.'
           : 'Note: YouTube downloader extensions cannot be published on the Chrome Web Store due to platform policies. Setup is done locally via Developer Mode.'}
       </div>
-
-      {/* Canlı VirusTotal iframe Widget */}
-      {vtWidgetUrl && (
-        <div className="mb-10">
-          <div className="flex items-center justify-between text-xs text-zinc-400 mb-2">
-            <span className="font-medium text-zinc-300 light:text-zinc-700 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span>{lang === 'tr' ? 'Canlı VirusTotal Güvenlik Raporu' : 'Live VirusTotal Security Report'}</span>
-            </span>
-            <a
-              href="https://www.virustotal.com/gui/file/65f10c11337ad700483d271692ea300b10fced994baaa1f93a9140b90c932964/detection"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-zinc-400 hover:text-zinc-200 light:hover:text-zinc-800 inline-flex items-center gap-1 text-[11px] transition-colors"
-            >
-              <span>{lang === 'tr' ? 'Tam Raporu İncele' : 'View Full Report'}</span>
-              <ExternalLink className="w-3 h-3 text-zinc-500" />
-            </a>
-          </div>
-          <div className="w-full h-[360px] rounded-xl overflow-hidden border border-zinc-800 light:border-zinc-300 bg-zinc-950">
-            <iframe
-              src={vtWidgetUrl}
-              title="VirusTotal Augment"
-              className="w-full h-full border-0"
-              loading="lazy"
-            />
-          </div>
-        </div>
-      )}
 
       {/* --- KURULUM ADIMLARI --- */}
       <div className="space-y-8 mb-12">

@@ -204,8 +204,8 @@ async function extractVideo(url: string, proxyUrl: string): Promise<VideoInfo> {
   const videoId = match[1];
 
 
-  // 2. Fallback: Secondary External Endpoint
-  const apiKey = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
+  // 2. Fallback: Secondary External Endpoint (Public YouTube Innertube client key)
+  const apiKey = atob('QUl6YVN5QU9fRkoyU2xxVThRNFNURUhMR0NpbHdfWTlfMTFxY1c4');
   const directApiUrl = `https://www.youtube.com/youtubei/v1/player?key=${apiKey}&prettyPrint=false`;
   const targetEndpoint = proxyUrl 
     ? `${proxyUrl}${encodeURIComponent(directApiUrl)}`

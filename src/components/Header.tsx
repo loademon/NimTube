@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, Moon, Sun, History } from 'lucide-react';
+import { Settings, History } from 'lucide-react';
 import { translations, Language } from '../core/i18n';
 import type { AppSettings } from '../core/types';
 
@@ -25,11 +25,6 @@ export const Header: React.FC<HeaderProps> = ({
   activeView,
 }) => {
   const t = translations[lang].nav;
-
-  const toggleTheme = () => {
-    const nextTheme = settings.theme === 'dark' ? 'light' : 'dark';
-    onUpdateSettings({ theme: nextTheme });
-  };
 
   return (
     <header className="w-full border-b border-zinc-800/60 light:border-zinc-200 transition-colors">
@@ -87,19 +82,6 @@ export const Header: React.FC<HeaderProps> = ({
             title="Dili Değiştir / Change Language"
           >
             {lang.toUpperCase()}
-          </button>
-
-          {/* Theme Toggle */}
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-md text-zinc-400 hover:text-zinc-100 light:hover:text-zinc-900 hover:bg-zinc-800/50 light:hover:bg-zinc-100 transition-colors"
-            title={settings.theme === 'dark' ? t.lightTheme : t.darkTheme}
-          >
-            {settings.theme === 'dark' ? (
-              <Sun className="w-4 h-4 text-zinc-300" />
-            ) : (
-              <Moon className="w-4 h-4 text-zinc-600" />
-            )}
           </button>
 
           {/* GitHub Repository */}

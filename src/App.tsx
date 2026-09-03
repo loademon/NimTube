@@ -83,17 +83,15 @@ export const App: React.FC = () => {
     localStorage.setItem('nimtube_lang', l);
   };
 
-  // Apply theme
+  // Save settings & lock to dark mode
   useEffect(() => {
     localStorage.setItem('nimtube_settings', JSON.stringify(settings));
-    if (settings.theme === 'dark') {
-      document.documentElement.classList.add('dark');
-      document.documentElement.classList.remove('light');
-    } else {
-      document.documentElement.classList.add('light');
-      document.documentElement.classList.remove('dark');
-    }
   }, [settings]);
+
+  useEffect(() => {
+    document.documentElement.classList.add('dark');
+    document.documentElement.classList.remove('light');
+  }, []);
 
   // Handle URL search
   const handleSearch = async (url: string) => {
@@ -215,7 +213,7 @@ export const App: React.FC = () => {
     downloadProgress.stage !== 'error';
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#09090b] light:bg-[#fafafa] text-zinc-100 light:text-zinc-900 transition-colors">
+    <div className="min-h-screen flex flex-col bg-[#09090b] text-zinc-100">
       {/* Header */}
       <Header
         settings={settings}

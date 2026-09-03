@@ -118,14 +118,14 @@ export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) =>
         </button>
       </div>
 
-      {/* Yeşil Güvenlik Bilgilendirmesi (!?) */}
-      <div className="mb-8 rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4 sm:p-5 text-zinc-300">
+      {/* Güvenlik & Gizlilik Bilgilendirmesi */}
+      <div className="mb-8 rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-4 sm:p-5 text-zinc-300">
         <div className="flex items-start gap-3 mb-3.5">
-          <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center shrink-0 font-mono font-bold text-emerald-400 text-sm shadow-sm shadow-emerald-500/20">
+          <div className="w-6 h-6 rounded bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center shrink-0 font-mono font-medium text-emerald-500/90 text-xs select-none">
             !?
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-emerald-400 mb-0.5">
+            <h3 className="text-sm font-medium text-zinc-200 mb-0.5">
               {lang === 'tr' ? 'Güvenlik, Gizlilik & Açık Kaynak Güvencesi' : 'Security, Privacy & Open Source Assurance'}
             </h3>
             <p className="text-xs text-zinc-400 leading-relaxed">
@@ -136,10 +136,10 @@ export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) =>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2.5 border-t border-emerald-500/20 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-zinc-800/50 text-xs">
           <div className="space-y-0.5">
-            <span className="font-medium text-emerald-300 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span className="font-medium text-zinc-300 flex items-center gap-1.5">
+              <span className="text-zinc-500">•</span>
               <span>{lang === 'tr' ? 'Kişisel Verilere Sıfır Erişim' : 'Zero Access to Personal Data'}</span>
             </span>
             <p className="text-zinc-400 text-[11px] leading-relaxed pl-3">
@@ -150,8 +150,8 @@ export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) =>
           </div>
 
           <div className="space-y-0.5">
-            <span className="font-medium text-emerald-300 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span className="font-medium text-zinc-300 flex items-center gap-1.5">
+              <span className="text-zinc-500">•</span>
               <span>{lang === 'tr' ? 'Neden Web Mağazasında Yok?' : 'Why Not on Chrome Web Store?'}</span>
             </span>
             <p className="text-zinc-400 text-[11px] leading-relaxed pl-3">
@@ -162,8 +162,8 @@ export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) =>
           </div>
 
           <div className="space-y-0.5">
-            <span className="font-medium text-emerald-300 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span className="font-medium text-zinc-300 flex items-center gap-1.5">
+              <span className="text-zinc-500">•</span>
               <span>{lang === 'tr' ? 'Sıfır Sunucu & Sıfır İzleyici' : 'Zero Servers & Zero Trackers'}</span>
             </span>
             <p className="text-zinc-400 text-[11px] leading-relaxed pl-3">
@@ -174,8 +174,8 @@ export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) =>
           </div>
 
           <div className="space-y-0.5">
-            <span className="font-medium text-emerald-300 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span className="font-medium text-zinc-300 flex items-center gap-1.5">
+              <span className="text-zinc-500">•</span>
               <span>{lang === 'tr' ? 'VirusTotal ile Bağımsız Onay' : 'VirusTotal Verified Clean'}</span>
             </span>
             <p className="text-zinc-400 text-[11px] leading-relaxed pl-3">

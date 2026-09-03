@@ -53,7 +53,7 @@ export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) =>
 
   const handleDownload = () => {
     const a = document.createElement('a');
-    a.href = '/nimtube-bridge.zip';
+    a.href = `/nimtube-bridge.zip?t=${Date.now()}`;
     a.download = 'nimtube-bridge.zip';
     document.body.appendChild(a);
     a.click();

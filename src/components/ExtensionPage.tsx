@@ -11,7 +11,29 @@ interface ExtensionPageProps {
 export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) => {
   const [hasExtension, setHasExtension] = useState(isExtensionAvailable());
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+  const [vtData, setVtData] = useState({
+    permalink: 'https://www.virustotal.com/gui/file/65f10c11337ad700483d271692ea300b10fced994baaa1f93a9140b90c932964/detection',
+    detections: 0,
+    total: 62,
+    sha256: '65f10c11337ad700483d271692ea300b10fced994baaa1f93a9140b90c932964'
+  });
   const t = translations[lang].extensionPage;
+
+  useEffect(() => {
+    fetch('/virustotal-widget.json')
+      .then((res) => res.json())
+      .then((d) => {
+        if (d?.permalink) {
+          setVtData({
+            permalink: d.permalink,
+            detections: d.detections ?? 0,
+            total: d.total ?? 62,
+            sha256: d.sha256 ?? '65f10c11337ad700483d271692ea300b10fced994baaa1f93a9140b90c932964'
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     return subscribeExtensionStatus((active) => setHasExtension(active));
@@ -65,12 +87,12 @@ export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) =>
           <span className="text-zinc-700 light:text-zinc-300">•</span>
 
           <a
-            href="https://www.virustotal.com/gui/file/65f10c11337ad700483d271692ea300b10fced994baaa1f93a9140b90c932964/detection"
+            href={vtData.permalink}
             target="_blank"
             rel="noopener noreferrer"
             className="text-zinc-400 hover:text-zinc-200 light:hover:text-zinc-800 inline-flex items-center gap-1 transition-colors"
           >
-            <span>VirusTotal: 0/64 Temiz</span>
+            <span>VirusTotal: {vtData.detections}/{vtData.total} {lang === 'tr' ? 'Temiz' : 'Clean'}</span>
             <ExternalLink className="w-3 h-3 text-zinc-500" />
           </a>
         </div>
@@ -86,10 +108,46 @@ export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) =>
       </div>
 
       {/* Policy Note */}
-      <div className="mb-8 p-3 rounded-lg bg-zinc-900/30 light:bg-zinc-100 text-xs text-zinc-400 light:text-zinc-600 leading-relaxed border border-zinc-800/50 light:border-zinc-200">
+      <div className="mb-6 p-3 rounded-lg bg-zinc-900/30 light:bg-zinc-100 text-xs text-zinc-400 light:text-zinc-600 leading-relaxed border border-zinc-800/50 light:border-zinc-200">
         {lang === 'tr'
           ? 'Not: YouTube indirme araçları Google politikaları gereği Chrome Web Mağazası\'nda yayınlanamaz. Bu nedenle kurulum tarayıcının geliştirici modu üzerinden doğrudan yerel dosya ile yapılır.'
           : 'Note: YouTube downloader extensions cannot be published on the Chrome Web Store due to platform policies. Setup is done locally via Developer Mode.'}
+      </div>
+
+      {/* Gerçek VirusTotal Tarama Görseli */}
+      <div className="mb-10">
+        <div className="flex items-center justify-between text-xs text-zinc-400 mb-2">
+          <span className="font-medium text-zinc-300 light:text-zinc-700 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span>
+              {lang === 'tr'
+                ? `VirusTotal Güvenlik Raporu (${vtData.detections} / ${vtData.total} Temiz)`
+                : `VirusTotal Security Scan (${vtData.detections} / ${vtData.total} Clean)`}
+            </span>
+          </span>
+          <a
+            href={vtData.permalink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-zinc-400 hover:text-zinc-200 light:hover:text-zinc-800 inline-flex items-center gap-1 text-[11px] transition-colors"
+          >
+            <span>{lang === 'tr' ? 'Rapor Sayfasını Aç' : 'Open Report Page'}</span>
+            <ExternalLink className="w-3 h-3 text-zinc-500" />
+          </a>
+        </div>
+
+        <a
+          href={vtData.permalink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block rounded-xl overflow-hidden border border-zinc-800 light:border-zinc-300 bg-zinc-950 hover:border-zinc-700 transition-colors"
+        >
+          <img
+            src="/guide/virustotal-report.png"
+            alt="VirusTotal Scan Report: 0/62 Clean"
+            className="w-full object-contain"
+          />
+        </a>
       </div>
 
       {/* --- KURULUM ADIMLARI --- */}

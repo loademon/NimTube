@@ -30,6 +30,17 @@ window.addEventListener('message', (event) => {
 
   const { requestId, type, payload } = event.data;
 
+  // Instant response for PING
+  if (type === 'PING') {
+    window.postMessage({
+      source: 'nimtube-extension',
+      requestId,
+      success: true,
+      version: '1.0.3',
+    }, '*');
+    return;
+  }
+
   chrome.runtime.sendMessage({ type, payload }, (response) => {
     if (chrome.runtime.lastError) {
       window.postMessage({

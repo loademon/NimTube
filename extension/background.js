@@ -26,8 +26,28 @@ function setupContextMenu() {
   }
 }
 
+function injectContentScriptIntoOpenTabs() {
+  if (!chrome.tabs || !chrome.scripting) return;
+  chrome.tabs.query({}, (tabs) => {
+    for (const tab of tabs) {
+      if (!tab.id || !tab.url) continue;
+      if (
+        tab.url.includes('nimtube.2615.us') ||
+        tab.url.includes('localhost:') ||
+        tab.url.includes('127.0.0.1:')
+      ) {
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content.js'],
+        }).catch(() => {});
+      }
+    }
+  });
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   setupContextMenu();
+  injectContentScriptIntoOpenTabs();
 });
 
 chrome.runtime.onStartup.addListener(() => {

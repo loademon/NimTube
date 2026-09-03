@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Download, Check, Copy, ExternalLink, ShieldCheck, Sparkles } from 'lucide-react';
 import { Language } from '../core/i18n';
-import { isExtensionAvailable, subscribeExtensionStatus } from '../core/extension/extensionBridge';
+import { isExtensionAvailable, subscribeExtensionStatus, getExtensionStatus, ExtensionStatus } from '../core/extension/extensionBridge';
 
 interface ExtensionModalProps {
   isOpen: boolean;
@@ -16,11 +16,15 @@ export const ExtensionModal: React.FC<ExtensionModalProps> = ({
   lang,
   onOpenFullPage,
 }) => {
+  const [extStatus, setExtStatus] = useState<ExtensionStatus>(getExtensionStatus());
   const [hasExtension, setHasExtension] = useState(isExtensionAvailable());
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    return subscribeExtensionStatus((active) => setHasExtension(active));
+    return subscribeExtensionStatus((active, status) => {
+      setHasExtension(active);
+      setExtStatus(status);
+    });
   }, []);
 
   if (!isOpen) return null;
@@ -170,13 +174,27 @@ export const ExtensionModal: React.FC<ExtensionModalProps> = ({
 
           {/* Live Status Feedback Banner */}
           <div className={`p-3 rounded-lg border transition-all ${
-            hasExtension
-              ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-300'
-              : 'bg-zinc-950 border-zinc-800/80 text-zinc-400'
+            !extStatus.available
+              ? 'bg-zinc-950 border-zinc-800/80 text-zinc-400'
+              : extStatus.outdated
+              ? 'bg-amber-950/25 border-amber-800/60 text-amber-200'
+              : 'bg-emerald-950/30 border-emerald-500/40 text-emerald-300'
           }`}>
             <div className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-2">
-                {hasExtension ? (
+                {!extStatus.available ? (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                    <span>{lang === 'tr' ? 'Eklenti bağlantısı bekleniyor...' : 'Waiting for extension connection...'}</span>
+                  </>
+                ) : extStatus.outdated ? (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-amber-400" />
+                    <span className="font-medium text-amber-300 flex items-center gap-1.5">
+                      <span>{lang === 'tr' ? '⚠️ Güncelleme Gerekiyor' : '⚠️ Update Required'}</span>
+                    </span>
+                  </>
+                ) : (
                   <>
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                     <span className="font-medium text-emerald-300 flex items-center gap-1.5">
@@ -184,25 +202,31 @@ export const ExtensionModal: React.FC<ExtensionModalProps> = ({
                       <span>{lang === 'tr' ? 'Eklenti Başarıyla Bağlandı!' : 'Extension Successfully Connected!'}</span>
                     </span>
                   </>
-                ) : (
-                  <>
-                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-                    <span>{lang === 'tr' ? 'Eklenti bağlantısı bekleniyor...' : 'Waiting for extension connection...'}</span>
-                  </>
                 )}
               </div>
 
-              {hasExtension && (
-                <span className="text-[11px] text-emerald-400 font-mono">v1.0.2</span>
+              {extStatus.available && (
+                <span className="text-[11px] font-mono text-zinc-400">
+                  {extStatus.outdated
+                    ? `v${extStatus.version} → v${extStatus.latestVersion}`
+                    : `v${extStatus.version}`}
+                </span>
               )}
             </div>
-            {!hasExtension && (
+
+            {!extStatus.available ? (
               <p className="text-[11px] text-zinc-500 mt-1 pl-4">
                 {lang === 'tr'
-                  ? 'Klasörü yüklediğiniz an sayfa otomatik olarak algılayacaktır.'
-                  : 'As soon as the folder is loaded, this window will detect it immediately.'}
+                  ? 'Klasörü yüklediğiniz an sayfayı yenilemenize gerek kalmadan otomatik bağlanacaktır.'
+                  : 'As soon as the folder is loaded, this window connects automatically without refreshing.'}
               </p>
-            )}
+            ) : extStatus.outdated ? (
+              <p className="text-[11px] text-amber-300/80 mt-1 pl-4">
+                {lang === 'tr'
+                  ? 'İndirilen zip dosyasını ayıklayıp chrome://extensions sayfasında NimTube Bridge yanındaki "Yenile" (↺) butonuna basın.'
+                  : 'Extract the downloaded zip and click the "Reload" (↺) button next to NimTube Bridge in chrome://extensions.'}
+              </p>
+            ) : null}
           </div>
         </div>
 

@@ -1,7 +1,62 @@
 // NimTube Client-Side Extension Bridge
 
-let extensionAvailable = false;
-const listeners = new Set<(available: boolean) => void>();
+export const LATEST_EXTENSION_VERSION = '1.0.3';
+
+export interface ExtensionStatus {
+  available: boolean;
+  version: string | null;
+  outdated: boolean;
+  latestVersion: string;
+}
+
+let currentStatus: ExtensionStatus = {
+  available: false,
+  version: null,
+  outdated: false,
+  latestVersion: LATEST_EXTENSION_VERSION,
+};
+
+const listeners = new Set<(available: boolean, status: ExtensionStatus) => void>();
+
+function compareVersions(v1: string, v2: string): number {
+  const p1 = v1.split('.').map((n) => parseInt(n, 10) || 0);
+  const p2 = v2.split('.').map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
+    const num1 = p1[i] || 0;
+    const num2 = p2[i] || 0;
+    if (num1 < num2) return -1;
+    if (num1 > num2) return 1;
+  }
+  return 0;
+}
+
+function updateStatus(available: boolean, version: string | null) {
+  const outdated = Boolean(
+    available && version && compareVersions(version, LATEST_EXTENSION_VERSION) < 0
+  );
+
+  const changed =
+    currentStatus.available !== available ||
+    currentStatus.version !== version ||
+    currentStatus.outdated !== outdated;
+
+  currentStatus = {
+    available,
+    version,
+    outdated,
+    latestVersion: LATEST_EXTENSION_VERSION,
+  };
+
+  if (changed) {
+    listeners.forEach((fn) => {
+      try {
+        fn(available, currentStatus);
+      } catch (err) {
+        console.error('Listener error in extensionBridge:', err);
+      }
+    });
+  }
+}
 
 // Convert base64 to ArrayBuffer
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
@@ -19,42 +74,62 @@ if (typeof window !== 'undefined') {
   window.addEventListener('message', (event) => {
     if (event.source !== window || !event.data) return;
     if (event.data.source === 'nimtube-extension' && event.data.type === 'EXTENSION_READY') {
-      if (!extensionAvailable) {
-        extensionAvailable = true;
-        listeners.forEach((fn) => fn(true));
-      }
+      const ver = event.data.version || null;
+      updateStatus(true, ver);
     }
   });
 
-  // Initial check
-  setTimeout(() => {
-    checkExtensionAvailability();
-  }, 100);
+  // Start continuous polling immediately so changes in chrome://extensions reflect without F5
+  startExtensionPolling(1500);
 }
 
 export function isExtensionAvailable(): boolean {
-  return extensionAvailable;
+  return currentStatus.available;
 }
 
-export function subscribeExtensionStatus(callback: (available: boolean) => void): () => void {
+export function getExtensionStatus(): ExtensionStatus {
+  return currentStatus;
+}
+
+export function subscribeExtensionStatus(
+  callback: (available: boolean, status: ExtensionStatus) => void
+): () => void {
   listeners.add(callback);
-  callback(extensionAvailable);
+  callback(currentStatus.available, currentStatus);
   return () => listeners.delete(callback);
+}
+
+let pollingTimer: any = null;
+
+export function startExtensionPolling(intervalMs = 1500) {
+  if (typeof window === 'undefined') return;
+  if (pollingTimer) return;
+
+  // Initial immediate check
+  checkExtensionAvailability();
+
+  pollingTimer = setInterval(() => {
+    checkExtensionAvailability();
+  }, intervalMs);
+}
+
+export function stopExtensionPolling() {
+  if (pollingTimer) {
+    clearInterval(pollingTimer);
+    pollingTimer = null;
+  }
 }
 
 export async function checkExtensionAvailability(): Promise<boolean> {
   try {
-    const res = await sendExtensionRequest('PING', {});
+    const res = await sendExtensionRequest('PING', {}, 900);
     const isOk = Boolean(res && res.success);
-    if (extensionAvailable !== isOk) {
-      extensionAvailable = isOk;
-      listeners.forEach((fn) => fn(isOk));
-    }
+    const ver = res?.version || currentStatus.version;
+    updateStatus(isOk, ver);
     return isOk;
   } catch {
-    if (extensionAvailable) {
-      extensionAvailable = false;
-      listeners.forEach((fn) => fn(false));
+    if (currentStatus.available) {
+      updateStatus(false, null);
     }
     return false;
   }
@@ -82,12 +157,15 @@ function sendExtensionRequest(type: string, payload: any, timeoutMs = 25000): Pr
     }
 
     window.addEventListener('message', handleResponse);
-    window.postMessage({
-      source: 'nimtube-client',
-      requestId,
-      type,
-      payload,
-    }, '*');
+    window.postMessage(
+      {
+        source: 'nimtube-client',
+        requestId,
+        type,
+        payload,
+      },
+      '*'
+    );
   });
 }
 

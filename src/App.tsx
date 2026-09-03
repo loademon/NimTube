@@ -13,7 +13,7 @@ import { ExtensionModal } from './components/ExtensionModal';
 import { engine } from './core/engine';
 import { Language } from './core/i18n';
 import { getHistory, addToHistory, HistoryItem } from './core/storage/history';
-import { isExtensionAvailable, subscribeExtensionStatus } from './core/extension/extensionBridge';
+import { isExtensionAvailable, subscribeExtensionStatus, getExtensionStatus, ExtensionStatus } from './core/extension/extensionBridge';
 import type { 
   VideoInfo, 
   VideoFormat, 
@@ -42,11 +42,15 @@ export const App: React.FC = () => {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isExtensionModalOpen, setIsExtensionModalOpen] = useState(false);
   const [historyList, setHistoryList] = useState<HistoryItem[]>(getHistory);
+  const [extStatus, setExtStatus] = useState<ExtensionStatus>(getExtensionStatus());
   const [hasExtension, setHasExtension] = useState(isExtensionAvailable());
   const [initialSearchUrl, setInitialSearchUrl] = useState('');
 
   useEffect(() => {
-    return subscribeExtensionStatus((active) => setHasExtension(active));
+    return subscribeExtensionStatus((active, status) => {
+      setHasExtension(active);
+      setExtStatus(status);
+    });
   }, []);
 
   const [settings, setSettings] = useState<AppSettings>(() => {
@@ -240,8 +244,8 @@ export const App: React.FC = () => {
           />
         ) : (
           <>
-            {/* Warning banner when extension is not installed */}
-            {!hasExtension && (
+            {/* Warning banner when extension is not installed or requires update */}
+            {!extStatus.available ? (
               <div className="mb-4 p-3 rounded-lg border border-amber-900/40 bg-amber-950/20 text-xs text-amber-300 flex items-center justify-between gap-3 animate-in fade-in duration-200">
                 <div className="flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
@@ -268,7 +272,34 @@ export const App: React.FC = () => {
                   <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
                 </button>
               </div>
-            )}
+            ) : extStatus.outdated ? (
+              <div className="mb-4 p-3 rounded-lg border border-amber-900/50 bg-amber-950/25 text-xs text-amber-300 flex items-center justify-between gap-3 animate-in fade-in duration-200">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>
+                    {lang === 'tr'
+                      ? `Eklenti güncellemesi gerekiyor (Yüklü: v${extStatus.version} → Güncel: v${extStatus.latestVersion}).`
+                      : `Extension update required (Installed: v${extStatus.version} → Latest: v${extStatus.latestVersion}).`}
+                  </span>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const a = document.createElement('a');
+                    a.href = '/nimtube-bridge.zip';
+                    a.download = 'nimtube-bridge.zip';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setIsExtensionModalOpen(true);
+                  }}
+                  className="font-medium hover:text-white shrink-0 text-amber-400 inline-flex items-center gap-1 transition-colors group"
+                >
+                  <span>{lang === 'tr' ? 'Eklentiyi Güncelle (.zip)' : 'Update Extension (.zip)'}</span>
+                  <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                </button>
+              </div>
+            ) : null}
 
             <UrlInput
               onSearch={handleSearch}

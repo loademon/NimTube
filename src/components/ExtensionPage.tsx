@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Download, Copy, Check, ExternalLink } from 'lucide-react';
 import { translations, Language } from '../core/i18n';
-import { isExtensionAvailable, subscribeExtensionStatus } from '../core/extension/extensionBridge';
+import { isExtensionAvailable, subscribeExtensionStatus, getExtensionStatus, ExtensionStatus } from '../core/extension/extensionBridge';
 import { ExtensionModal } from './ExtensionModal';
 
 interface ExtensionPageProps {
@@ -10,6 +10,7 @@ interface ExtensionPageProps {
 }
 
 export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) => {
+  const [extStatus, setExtStatus] = useState<ExtensionStatus>(getExtensionStatus());
   const [hasExtension, setHasExtension] = useState(isExtensionAvailable());
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
@@ -38,7 +39,10 @@ export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) =>
   }, []);
 
   useEffect(() => {
-    return subscribeExtensionStatus((active) => setHasExtension(active));
+    return subscribeExtensionStatus((active, status) => {
+      setHasExtension(active);
+      setExtStatus(status);
+    });
   }, []);
 
   const handleCopy = (url: string) => {
@@ -83,15 +87,24 @@ export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) =>
         <div className="text-xs text-zinc-400 flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <span>{lang === 'tr' ? 'Durum:' : 'Status:'}</span>
-            {hasExtension ? (
-              <span className="flex items-center gap-1.5 text-zinc-200 light:text-zinc-800">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span>{lang === 'tr' ? 'Bağlı' : 'Connected'}</span>
-              </span>
-            ) : (
+            {!extStatus.available ? (
               <span className="flex items-center gap-1.5 text-zinc-400">
                 <span className="w-2 h-2 rounded-full bg-zinc-500" />
                 <span>{lang === 'tr' ? 'Yüklü Değil' : 'Not Installed'}</span>
+              </span>
+            ) : extStatus.outdated ? (
+              <span className="flex items-center gap-1.5 text-amber-300 font-medium">
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                <span>
+                  {lang === 'tr'
+                    ? `Güncelleme Gerekli (v${extStatus.version} → v${extStatus.latestVersion})`
+                    : `Update Required (v${extStatus.version} → v${extStatus.latestVersion})`}
+                </span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 text-zinc-200 light:text-zinc-800">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span>{lang === 'tr' ? `Bağlı (v${extStatus.version})` : `Connected (v${extStatus.version})`}</span>
               </span>
             )}
           </div>
@@ -114,9 +127,29 @@ export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) =>
           className="btn-solid px-3.5 py-1.5 rounded-md text-xs font-medium inline-flex items-center gap-1.5"
         >
           <Download className="w-3.5 h-3.5" />
-          <span>{t.downloadBtn}</span>
+          <span>{extStatus.outdated ? (lang === 'tr' ? 'Güncelle (.zip)' : 'Update (.zip)') : t.downloadBtn}</span>
         </button>
       </div>
+
+      {/* Güncelleme Uyarısı */}
+      {extStatus.outdated && (
+        <div className="mb-6 p-3 rounded-lg bg-amber-950/20 border border-amber-800/40 flex items-center justify-between gap-3 text-xs text-amber-200">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+            <span>
+              {lang === 'tr'
+                ? `Eklentinizin yeni sürümü mevcut (v${extStatus.version} → v${extStatus.latestVersion}). Yeni YouTube güncellemeleri ve sağ tık düzeltmeleri için lütfen güncelleyin.`
+                : `A newer version of the extension is available (v${extStatus.version} → v${extStatus.latestVersion}). Please update to keep YouTube streams working.`}
+            </span>
+          </div>
+          <button
+            onClick={handleDownload}
+            className="btn-solid px-2.5 py-1 rounded text-xs font-medium shrink-0"
+          >
+            {lang === 'tr' ? 'Güncelle (.zip)' : 'Update (.zip)'}
+          </button>
+        </div>
+      )}
 
       {/* Güvenlik & Gizlilik Bilgilendirmesi */}
       <div className="mb-8 rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-4 sm:p-5 text-zinc-300">

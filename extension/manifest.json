@@ -7,11 +7,16 @@
     "declarativeNetRequest",
     "activeTab",
     "contextMenus",
-    "storage"
+    "storage",
+    "scripting"
   ],
   "host_permissions": [
     "*://*.youtube.com/*",
-    "*://*.googlevideo.com/*"
+    "*://*.googlevideo.com/*",
+    "https://nimtube.2615.us/*",
+    "https://*.2615.us/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
   ],
   "action": {
     "default_popup": "popup.html",

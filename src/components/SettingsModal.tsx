@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Check, ArrowRight } from 'lucide-react';
 import type { AppSettings } from '../core/types';
 import { translations, Language } from '../core/i18n';
-import { isExtensionAvailable, subscribeExtensionStatus } from '../core/extension/extensionBridge';
+import { isExtensionAvailable, subscribeExtensionStatus, getExtensionStatus, ExtensionStatus } from '../core/extension/extensionBridge';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -23,10 +23,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [formState, setFormState] = useState<AppSettings>({ ...settings });
   const [isSaved, setIsSaved] = useState(false);
+  const [extStatus, setExtStatus] = useState<ExtensionStatus>(getExtensionStatus());
   const [hasExtension, setHasExtension] = useState(isExtensionAvailable());
 
   useEffect(() => {
-    return subscribeExtensionStatus((active) => setHasExtension(active));
+    return subscribeExtensionStatus((active, status) => {
+      setHasExtension(active);
+      setExtStatus(status);
+    });
   }, []);
 
   if (!isOpen) return null;
@@ -127,20 +131,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div className="pt-2 border-t border-zinc-800/60 light:border-zinc-200 flex items-center justify-between text-[11px]">
             <div className="flex items-center gap-1.5 text-zinc-400">
               <span>{lang === 'tr' ? 'Durum:' : 'Status:'}</span>
-              {hasExtension ? (
-                <div className="flex items-center gap-1.5 text-zinc-200 light:text-zinc-800">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  <span>{lang === 'tr' ? 'Bağlı' : 'Connected'}</span>
-                </div>
-              ) : (
+              {!extStatus.available ? (
                 <div className="flex items-center gap-1.5 text-zinc-400">
                   <span className="w-1.5 h-1.5 rounded-full bg-zinc-500" />
                   <span>{lang === 'tr' ? 'Yüklü Değil' : 'Not Installed'}</span>
                 </div>
+              ) : extStatus.outdated ? (
+                <div className="flex items-center gap-1.5 text-amber-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  <span>{lang === 'tr' ? `Güncelleme Gerekli (v${extStatus.version})` : `Update Required (v${extStatus.version})`}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 text-zinc-200 light:text-zinc-800">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span>{lang === 'tr' ? `Bağlı (v${extStatus.version})` : `Connected (v${extStatus.version})`}</span>
+                </div>
               )}
             </div>
 
-            {!hasExtension && onNavigateToExtension && (
+            {(!extStatus.available || extStatus.outdated) && onNavigateToExtension && (
               <button
                 type="button"
                 onClick={() => {
@@ -149,7 +158,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 }}
                 className="text-zinc-400 hover:text-zinc-200 inline-flex items-center gap-1 transition-colors group"
               >
-                <span>{lang === 'tr' ? 'Eklenti Sayfası' : 'Extension Page'}</span>
+                <span>{extStatus.outdated ? (lang === 'tr' ? 'Güncelle' : 'Update') : (lang === 'tr' ? 'Eklenti Sayfası' : 'Extension Page')}</span>
                 <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
               </button>
             )}

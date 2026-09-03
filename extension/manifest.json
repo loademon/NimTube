@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "NimTube Bridge",
+  "version": "1.0.2",
+  "description": "NimTube web uygulaması için doğrudan kullanıcı IP'si üzerinden CORS engelsiz medya köprüsü.",
+  "permissions": [
+    "declarativeNetRequest",
+    "activeTab",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "*://*.youtube.com/*",
+    "*://*.googlevideo.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "NimTube Bridge"
+  },
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "ruleset_1",
+        "enabled": true,
+        "path": "rules/rules.json"
+      }
+    ]
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost:*/*",
+        "http://127.0.0.1:*/*",
+        "https://*/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}

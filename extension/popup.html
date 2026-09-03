@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 230px;
+      padding: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #09090b;
+      color: #e4e4e7;
+      font-size: 12px;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .name {
+      font-weight: 600;
+      color: #fafafa;
+    }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: #a1a1aa;
+      font-size: 11px;
+    }
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+    }
+    .video-name {
+      font-size: 11px;
+      color: #a1a1aa;
+      margin-bottom: 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    button {
+      width: 100%;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #27272a;
+      background: #fafafa;
+      color: #09090b;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #e4e4e7;
+    }
+    button.secondary {
+      background: #18181b;
+      color: #e4e4e7;
+    }
+    button.secondary:hover {
+      background: #27272a;
+    }
+  </style>
+</head>
+<body>
+  <div class="row">
+    <span class="name">NimTube</span>
+    <div class="status">
+      <span>Durum:</span>
+      <span class="dot"></span>
+      <span style="color: #fafafa">Bağlı</span>
+    </div>
+  </div>
+
+  <div id="yt-wrap" style="display: none;">
+    <div id="video-name" class="video-name"></div>
+    <button id="dl-btn">Videoyu İndir</button>
+  </div>
+
+  <div id="default-wrap">
+    <button id="open-btn" class="secondary">NimTube'u Aç</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -516,15 +516,16 @@ export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) =>
           className="btn-solid px-3.5 py-1.5 rounded-md text-xs font-medium inline-flex items-center gap-1.5"
         >
           <Download className="w-3.5 h-3.5" />
-          <span>{t.downloadBtn}</span>
+          <span>{extStatus.outdated ? (lang === 'tr' ? 'Güncelle (.zip)' : 'Update (.zip)') : t.downloadBtn}</span>
         </button>
       </div>
 
-      {/* Extension Install Steps Modal */}
+      {/* Extension Install/Update Steps Modal */}
       <ExtensionModal
         isOpen={isInstallModalOpen}
         onClose={() => setIsInstallModalOpen(false)}
         lang={lang}
+        mode={extStatus.outdated ? 'update' : 'install'}
       />
     </div>
   );

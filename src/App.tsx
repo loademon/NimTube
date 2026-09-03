@@ -363,6 +363,7 @@ export const App: React.FC = () => {
         isOpen={isExtensionModalOpen}
         onClose={() => setIsExtensionModalOpen(false)}
         lang={lang}
+        mode={extStatus.outdated ? 'update' : 'install'}
         onOpenFullPage={() => {
           setIsExtensionModalOpen(false);
           setActiveView('extension');

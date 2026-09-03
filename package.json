@@ -7,6 +7,7 @@
     "dev": "vite",
     "package:extension": "node scripts/package-extension.js",
     "build": "node scripts/package-extension.js && tsc && vite build",
+    "verify:virustotal": "node scripts/check-virustotal.js",
     "preview": "vite preview"
   },
   "dependencies": {

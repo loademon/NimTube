@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "NimTube Bridge",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "NimTube web uygulaması için doğrudan kullanıcı IP'si üzerinden CORS engelsiz medya köprüsü.",
   "permissions": [
     "declarativeNetRequest",

@@ -82,7 +82,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     try {
       if (message.type === 'PING') {
-        sendResponse({ success: true, version: '1.0.3' });
+        sendResponse({ success: true, version: '1.0.4' });
         return;
       }
 

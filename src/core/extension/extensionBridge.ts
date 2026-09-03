@@ -1,6 +1,6 @@
 // NimTube Client-Side Extension Bridge
 
-export const LATEST_EXTENSION_VERSION = '1.0.3';
+export const LATEST_EXTENSION_VERSION = '1.0.4';
 
 export interface ExtensionStatus {
   available: boolean;

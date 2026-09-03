@@ -16,7 +16,7 @@ function notifyReady() {
   window.postMessage({
     source: 'nimtube-extension',
     type: 'EXTENSION_READY',
-    version: '1.0.3',
+    version: '1.0.4',
   }, '*');
 }
 
@@ -36,7 +36,7 @@ window.addEventListener('message', (event) => {
       source: 'nimtube-extension',
       requestId,
       success: true,
-      version: '1.0.3',
+      version: '1.0.4',
     }, '*');
     return;
   }

@@ -11,12 +11,20 @@ if (
   } catch (e) {}
 }
 
+function getExtensionVersion() {
+  try {
+    return chrome.runtime.getManifest().version;
+  } catch (e) {
+    return '1.0.4';
+  }
+}
+
 // Announce presence to the web application
 function notifyReady() {
   window.postMessage({
     source: 'nimtube-extension',
     type: 'EXTENSION_READY',
-    version: '1.0.4',
+    version: getExtensionVersion(),
   }, '*');
 }
 
@@ -36,7 +44,7 @@ window.addEventListener('message', (event) => {
       source: 'nimtube-extension',
       requestId,
       success: true,
-      version: '1.0.4',
+      version: getExtensionVersion(),
     }, '*');
     return;
   }

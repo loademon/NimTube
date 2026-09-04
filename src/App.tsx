@@ -371,13 +371,13 @@ export const App: React.FC = () => {
       />
 
       {/* Footer */}
-      <footer className="w-full py-5 text-center text-xs text-zinc-500 font-normal border-t border-zinc-800/40 light:border-zinc-200 flex items-center justify-center gap-3">
+      <footer className="w-full py-5 text-center text-xs text-zinc-400 font-normal border-t border-zinc-800/40 light:border-zinc-200 flex items-center justify-center gap-3">
         <span>NimTube for nimnim | powered by </span>
         <a
           href="https://who.loademon.com.tr/"
           target="_blank"
           rel="noreferrer"
-          className="text-zinc-400 light:text-zinc-600 hover:text-zinc-200 light:hover:text-zinc-900 underline transition-colors"
+          className="text-zinc-300 light:text-zinc-700 hover:text-white light:hover:text-black underline transition-colors"
         >
           loademon
         </a>
@@ -386,7 +386,7 @@ export const App: React.FC = () => {
           href="https://github.com/loademon/NimTube"
           target="_blank"
           rel="noreferrer"
-          className="text-zinc-400 light:text-zinc-600 hover:text-zinc-200 light:hover:text-zinc-900 underline transition-colors"
+          className="text-zinc-300 light:text-zinc-700 hover:text-white light:hover:text-black underline transition-colors"
         >
           GitHub
         </a>

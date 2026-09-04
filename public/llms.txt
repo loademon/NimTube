@@ -1,0 +1,20 @@
+﻿# NimTube
+
+> Pure Client-Side YouTube Studio & Downloader. Download YouTube videos and audio at full quality (4K, 1080p, MP3) directly in your browser with yt-dlp & WebAssembly. Zero server bandwidth, 100% your IP.
+
+## Features
+
+- [Video Downloader](https://nimtube.2615.us/): Download videos up to 4K 60fps directly on the client-side.
+- [Audio Extractor](https://nimtube.2615.us/): Extract and convert audio to MP3, AAC, or WAV locally.
+- [NimTube Bridge](https://nimtube.2615.us/): Companion Chrome extension to download directly using your own IP address without server limits.
+
+## Technology
+
+- [yt-dlp WebAssembly](https://nimtube.2615.us/): Client-side media processing engine.
+- [WebAssembly Core](https://nimtube.2615.us/): High-performance client-side media multiplexing and demuxing.
+
+## Links
+
+- [Home Page](https://nimtube.2615.us/): Main web application.
+- [Extension Guide](https://nimtube.2615.us/guide/extension): Chrome extension installation guide.
+- [GitHub Repository](https://github.com/loademon/NimTube): Source code and documentation.

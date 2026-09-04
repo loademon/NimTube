@@ -48,8 +48,10 @@ class NimTubeEngine {
         console.warn('yt-dlp worker init error:', err);
       }
     }
+  }
 
-    // 2. Initialize FFmpeg Worker
+  // Lazy-load FFmpeg WebAssembly worker only when needed (saves 10MB WASM bandwidth on page load)
+  private ensureFFmpegWorker(): Worker {
     if (!this.ffmpegWorker) {
       try {
         this.ffmpegWorker = new Worker(
@@ -69,13 +71,12 @@ class NimTubeEngine {
             }
           }
         };
-
-        // Trigger background init
-        this.ffmpegWorker.postMessage({ action: 'init' });
       } catch (err) {
-        console.warn('FFmpeg worker init error:', err);
+        console.error('FFmpeg worker creation error:', err);
+        throw new Error('FFmpeg WebAssembly motoru başlatılamadı.');
       }
     }
+    return this.ffmpegWorker;
   }
 
   private sendWorkerMessage(worker: Worker, action: string, payload: any, transfer: Transferable[] = []): Promise<any> {
@@ -264,12 +265,10 @@ class NimTubeEngine {
           statusMessage: 'Görüntü ve ses FFmpeg WebAssembly ile birleştiriliyor (Kayıpsız)...',
         });
 
-        if (!this.ffmpegWorker) {
-          this.initWorkers();
-        }
+        const ffmpeg = this.ensureFFmpegWorker();
 
         const muxedBuffer = await this.sendWorkerMessage(
-          this.ffmpegWorker!,
+          ffmpeg,
           'mux',
           {
             videoBuffer,
@@ -402,12 +401,10 @@ class NimTubeEngine {
           statusMessage: `MP3 (${settings.audioBitrate}) formatına dönüştürülüyor...`,
         });
 
-        if (!this.ffmpegWorker) {
-          this.initWorkers();
-        }
+        const ffmpeg = this.ensureFFmpegWorker();
 
         finalBuffer = await this.sendWorkerMessage(
-          this.ffmpegWorker!,
+          ffmpeg,
           'convert_audio',
           {
             audioBuffer,

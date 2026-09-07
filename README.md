@@ -1,8 +1,10 @@
-# NimTube
+# NimTube — Pure Client-Side YouTube Studio & Downloader
 
+[![Live Web App](https://img.shields.io/badge/Live%20App-nimtube.2615.us-E62117?style=flat&logo=youtube&logoColor=white)](https://nimtube.2615.us/)
 [![VirusTotal Clean](https://img.shields.io/badge/VirusTotal-0%2F64%20Clean-emerald?style=flat&logo=virustotal)](https://www.virustotal.com/gui/file/65f10c11337ad700483d271692ea300b10fced994baaa1f93a9140b90c932964/detection)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+> 🌐 **Canlı Web Sitesi (Live Site):** [https://nimtube.2615.us/](https://nimtube.2615.us/)  
 > **NimTube**, YouTube videolarını ve ses akışlarını harici bir sunucuya ihtiyaç duymadan, doğrudan kendi tarayıcınız ve internet bağlantınız üzerinden en yüksek kalitede (4K, 1080p, MP3) indirmenizi sağlayan istemci taraflı (client-side) açık kaynaklı bir medya aracıdır.
 
 ---

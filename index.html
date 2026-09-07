@@ -5,11 +5,152 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NimTube — Pure Client-Side YouTube Studio & Downloader</title>
-    <meta name="description" content="Download YouTube videos and audio at full quality (4K, 1080p, MP3) directly in your browser with yt-dlp & WebAssembly. Zero server bandwidth, 100% your IP." />
+    <meta name="title" content="NimTube — Pure Client-Side YouTube Studio & Downloader" />
+    <meta name="description" content="NimTube is an open-source, client-side YouTube video downloader and audio converter. Download YouTube videos in 4K, 1440p, 1080p, 60fps and convert to MP3 at full speed using WebAssembly." />
+    <meta name="keywords" content="NimTube, NimTube YouTube Downloader, YouTube video indir, YouTube mp3 dönüştürücü, client-side youtube downloader, 4k youtube downloader, open source youtube downloader, webassembly youtube downloader, nimtube downloader, youtube video indirme programı" />
+    <meta name="author" content="NimTube" />
+    <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://nimtube.2615.us/" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="NimTube" />
+    <meta property="og:url" content="https://nimtube.2615.us/" />
+    <meta property="og:title" content="NimTube — Pure Client-Side YouTube Studio & Downloader" />
+    <meta property="og:description" content="Download YouTube videos and audio at full quality (4K, 1080p, MP3) directly in your browser with WebAssembly. Zero server bandwidth, 100% your IP." />
+    <meta property="og:image" content="https://nimtube.2615.us/guide/virustotal-report.png" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="tr_TR" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="NimTube — Pure Client-Side YouTube Studio & Downloader" />
+    <meta name="twitter:description" content="Download YouTube videos and audio at full quality (4K, 1080p, MP3) directly in your browser with WebAssembly. Zero server limits." />
+    <meta name="twitter:image" content="https://nimtube.2615.us/guide/virustotal-report.png" />
+
+    <!-- Schema.org Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://nimtube.2615.us/#website",
+          "url": "https://nimtube.2615.us/",
+          "name": "NimTube",
+          "alternateName": [
+            "NimTube Downloader",
+            "NimTube YouTube Downloader",
+            "NimTube Studio"
+          ],
+          "description": "Pure Client-Side YouTube Studio & Downloader using WebAssembly and parallel chunk streaming."
+        },
+        {
+          "@type": "WebApplication",
+          "@id": "https://nimtube.2615.us/#webapp",
+          "name": "NimTube",
+          "url": "https://nimtube.2615.us/",
+          "applicationCategory": "MultimediaApplication",
+          "operatingSystem": "All modern web browsers (Chrome, Edge, Brave, Opera, Firefox)",
+          "browserRequirements": "Requires JavaScript and WebAssembly support",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          },
+          "description": "Client-side web application to download YouTube videos in 4K/1080p and extract audio to MP3 using local browser processing."
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://nimtube.2615.us/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is NimTube?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "NimTube is a client-side open-source YouTube downloader and audio converter that runs entirely in your browser using WebAssembly. It bypasses server throttling and downloads videos directly to your device."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How does NimTube download 4K and 1080p YouTube videos?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "YouTube serves 1080p and 4K video streams separately from audio streams. NimTube downloads both streams in parallel 8MB chunks using browser workers, and muxes them locally using WebAssembly FFmpeg without server re-encoding."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I convert YouTube videos to MP3 with NimTube?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, NimTube allows you to download and extract audio from YouTube videos directly into high-quality MP3, AAC, or WAV format."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is NimTube free and secure?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "NimTube is 100% free, open source, and privacy-focused. All downloads occur directly between your browser and YouTube's CDN. No video data passes through any third-party server, and its extension has 0/64 clean detections on VirusTotal."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
   </head>
   <body class="min-h-screen font-sans antialiased selection:bg-brand-500 selection:text-white">
-    <div id="root"></div>
+    <div id="root">
+      <!-- Semantic crawlable fallback for search engines and non-JS crawlers. Automatically replaced by React when mounted. -->
+      <main style="max-width: 800px; margin: 0 auto; padding: 2rem; font-family: system-ui, -apple-system, sans-serif; color: #e2e8f0; background-color: #0f172a;">
+        <header>
+          <h1>NimTube — Pure Client-Side YouTube Studio &amp; Downloader</h1>
+          <p>
+            <strong>NimTube</strong> is an open-source, client-side YouTube video downloader and audio converter. Download YouTube videos in 4K 60fps, 1440p, 1080p, and convert audio to MP3 directly in your browser without server bandwidth or quality loss.
+          </p>
+        </header>
+
+        <section>
+          <h2>Key Features</h2>
+          <ul>
+            <li><strong>Zero Server Bandwidth:</strong> All downloads stream directly between your computer and YouTube CDN using your own connection.</li>
+            <li><strong>4K &amp; 1080p Full Quality:</strong> Downloads separate video and audio streams and merges them seamlessly with in-browser WebAssembly FFmpeg.</li>
+            <li><strong>No Throttling (Speed Bypass):</strong> Uses 4 concurrent 8 MB range chunk workers to eliminate YouTube stream throttling.</li>
+            <li><strong>Direct-to-Disk Streaming:</strong> Streams large video files directly to your storage via File System Access API without bloating RAM.</li>
+            <li><strong>YouTube MP3 Converter:</strong> Extract and convert crystal-clear audio to MP3, AAC, or WAV locally.</li>
+            <li><strong>100% Open Source &amp; Private:</strong> No logs, no analytics, no third-party tracking, verified clean on VirusTotal.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>NimTube YouTube Downloader — How It Works</h2>
+          <p>
+            Traditional video downloaders route video streams through proxy servers, causing long queues, low speeds, and privacy risks. 
+            NimTube runs directly in your browser using modern web standards including WebAssembly, Web Workers, and the File System Access API. 
+            With the companion NimTube Bridge extension, you can download any YouTube video directly using your own IP address at maximum bandwidth.
+          </p>
+        </section>
+
+        <section>
+          <h2>Frequently Asked Questions</h2>
+          <article>
+            <h3>What is NimTube?</h3>
+            <p>NimTube is a high-speed, client-side YouTube video downloader and media converter powered by WebAssembly.</p>
+          </article>
+          <article>
+            <h3>How do I download YouTube videos in 4K or 1080p?</h3>
+            <p>Simply paste any YouTube video link into NimTube, choose your desired resolution (4K, 1440p, 1080p, 720p), and click Download. NimTube muxes video and audio streams directly in your browser.</p>
+          </article>
+          <article>
+            <h3>Is NimTube safe and virus-free?</h3>
+            <p>Yes. The NimTube extension has a 0/64 clean score on VirusTotal and all source code is open source on GitHub.</p>
+          </article>
+        </section>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

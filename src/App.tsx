@@ -45,6 +45,7 @@ export const App: React.FC = () => {
   const [extStatus, setExtStatus] = useState<ExtensionStatus>(getExtensionStatus());
   const [hasExtension, setHasExtension] = useState(isExtensionAvailable());
   const [initialSearchUrl, setInitialSearchUrl] = useState('');
+  const [showExtensionWarning, setShowExtensionWarning] = useState(false);
 
   useEffect(() => {
     return subscribeExtensionStatus((active, status) => {
@@ -52,6 +53,22 @@ export const App: React.FC = () => {
       setExtStatus(status);
     });
   }, []);
+
+  // Grace period to prevent 1-second warning flash during extension handshake
+  useEffect(() => {
+    if (extStatus.available) {
+      setShowExtensionWarning(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      if (!extStatus.available) {
+        setShowExtensionWarning(true);
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [extStatus.available]);
 
   const [settings, setSettings] = useState<AppSettings>(() => {
     const saved = localStorage.getItem('nimtube_settings');
@@ -115,9 +132,31 @@ export const App: React.FC = () => {
     }
   };
 
+  // Update document.title based on active view and language for SEO
+  useEffect(() => {
+    if (activeView === 'how-it-works') {
+      document.title = lang === 'tr' 
+        ? 'Nasıl Çalışır? — NimTube' 
+        : 'How It Works — NimTube';
+    } else if (activeView === 'extension') {
+      document.title = lang === 'tr' 
+        ? 'NimTube Bridge Eklentisi — Kurulum & Güvenlik' 
+        : 'NimTube Bridge Extension — Setup & Security';
+    } else if (videoInfo?.title) {
+      document.title = `${videoInfo.title} — NimTube`;
+    } else {
+      document.title = 'NimTube — Pure Client-Side YouTube Studio & Downloader';
+    }
+  }, [activeView, lang, videoInfo]);
+
   // Auto-load URL from query string or hash (triggered by context menu or popup)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const viewParam = params.get('view');
+    if (viewParam === 'how-it-works' || viewParam === 'extension') {
+      setActiveView(viewParam);
+    }
+
     const videoId = params.get('v');
     let target = '';
 
@@ -225,7 +264,13 @@ export const App: React.FC = () => {
         onUpdateSettings={(newPartial) => setSettings({ ...settings, ...newPartial })}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onToggleHistory={() => setIsHistoryOpen(true)}
-        onNavigate={(view) => setActiveView(view)}
+        onNavigate={(view) => {
+          setActiveView(view);
+          if (typeof window !== 'undefined') {
+            const newUrl = view === 'home' ? '/' : `/?view=${view}`;
+            window.history.replaceState({}, '', newUrl);
+          }
+        }}
         onSwitchLanguage={handleSwitchLanguage}
         activeView={activeView}
       />
@@ -245,7 +290,7 @@ export const App: React.FC = () => {
         ) : (
           <>
             {/* Warning banner when extension is not installed or requires update */}
-            {!extStatus.available ? (
+            {showExtensionWarning && !extStatus.available ? (
               <div className="mb-4 p-3 rounded-lg border border-amber-900/40 bg-amber-950/20 text-xs text-amber-300 flex items-center justify-between gap-3 animate-in fade-in duration-200">
                 <div className="flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />

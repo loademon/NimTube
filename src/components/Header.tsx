@@ -31,17 +31,25 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
         {/* Brand */}
         <div className="flex items-center gap-6">
-          <button
-            onClick={() => onNavigate('home')}
+          <a
+            href="/"
+            onClick={(e) => {
+              e.preventDefault();
+              onNavigate('home');
+            }}
             className="text-base font-semibold tracking-tight text-zinc-100 light:text-zinc-900 hover:opacity-85 transition-opacity"
           >
             NimTube
-          </button>
+          </a>
 
           {/* Navigation Links */}
           <nav className="flex items-center gap-1">
-            <button
-              onClick={() => onNavigate(activeView === 'how-it-works' ? 'home' : 'how-it-works')}
+            <a
+              href="/?view=how-it-works"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate(activeView === 'how-it-works' ? 'home' : 'how-it-works');
+              }}
               className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 activeView === 'how-it-works'
                   ? 'bg-zinc-800 light:bg-zinc-200 text-zinc-100 light:text-zinc-900'
@@ -49,10 +57,14 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               {t.howItWorks}
-            </button>
+            </a>
 
-            <button
-              onClick={() => onNavigate(activeView === 'extension' ? 'home' : 'extension')}
+            <a
+              href="/?view=extension"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate(activeView === 'extension' ? 'home' : 'extension');
+              }}
               className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 activeView === 'extension'
                   ? 'bg-zinc-800 light:bg-zinc-200 text-zinc-100 light:text-zinc-900'
@@ -60,7 +72,7 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               {t.extension}
-            </button>
+            </a>
           </nav>
         </div>
 

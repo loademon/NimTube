@@ -10,6 +10,10 @@
     <meta name="keywords" content="NimTube, NimTube YouTube Downloader, YouTube video indir, YouTube mp3 dönüştürücü, client-side youtube downloader, 4k youtube downloader, open source youtube downloader, webassembly youtube downloader, nimtube downloader, youtube video indirme programı" />
     <meta name="author" content="NimTube" />
     <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#09090b" />
+    <meta name="apple-mobile-web-app-title" content="NimTube" />
+    <meta name="application-name" content="NimTube" />
+    <link rel="manifest" href="/manifest.json" />
     <link rel="canonical" href="https://nimtube.2615.us/" />
 
     <!-- Open Graph / Facebook -->
@@ -131,6 +135,30 @@
   </head>
   <body class="min-h-screen font-sans antialiased selection:bg-brand-500 selection:text-white" style="background-color: #09090b; color: #f4f4f5;">
     <div id="root"></div>
+    <noscript>
+      <div style="max-width: 720px; margin: 40px auto; padding: 20px; color: #a1a1aa; font-family: system-ui, -apple-system, sans-serif; line-height: 1.6;">
+        <h1 style="color: #f4f4f5; font-size: 1.5rem; margin-bottom: 0.5rem;">NimTube — Pure Client-Side YouTube Studio &amp; Downloader</h1>
+        <p>
+          NimTube is an open-source, client-side YouTube video downloader and audio converter. 
+          Download YouTube videos in 4K 60fps, 1440p, 1080p, and convert audio to 320kbps MP3 directly in your browser without proxy servers, queues, or speed limits.
+        </p>
+        <h2 style="color: #e4e4e7; font-size: 1.1rem; margin-top: 1.5rem; margin-bottom: 0.5rem;">Core Features</h2>
+        <ul>
+          <li><strong>Pure Client-Side:</strong> Streams directly between YouTube CDN and your local browser using your own residential IP.</li>
+          <li><strong>4K &amp; 1080p WebAssembly Muxing:</strong> In-browser FFmpeg merges separate audio/video streams losslessly with zero quality loss (-c copy).</li>
+          <li><strong>Throttling Bypass:</strong> 4 concurrent 8 MB range chunk workers defeat YouTube bandwidth throttling.</li>
+          <li><strong>Direct-to-Disk:</strong> Streams incoming chunks straight to local storage via File System Access API with low memory usage.</li>
+          <li><strong>MP3 Converter:</strong> Local extraction and high-bitrate conversion to MP3, AAC, or WAV.</li>
+          <li><strong>Open Source &amp; Clean:</strong> 0/64 clean score verified on VirusTotal.</li>
+        </ul>
+        <h2 style="color: #e4e4e7; font-size: 1.1rem; margin-top: 1.5rem; margin-bottom: 0.5rem;">Documentation &amp; Links</h2>
+        <ul>
+          <li><a href="/?view=how-it-works" style="color: #60a5fa; text-decoration: underline;">How It Works &amp; Technical Architecture</a></li>
+          <li><a href="/?view=extension" style="color: #60a5fa; text-decoration: underline;">NimTube Bridge Chrome Extension Guide</a></li>
+          <li><a href="https://github.com/loademon/NimTube" style="color: #60a5fa; text-decoration: underline;">GitHub Repository (MIT License)</a></li>
+        </ul>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

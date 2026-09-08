@@ -1,0 +1,17 @@
+{
+  "name": "NimTube — Pure Client-Side YouTube Studio & Downloader",
+  "short_name": "NimTube",
+  "description": "Download YouTube videos and audio at full quality (4K, 1080p, MP3) directly in your browser with yt-dlp & WebAssembly.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

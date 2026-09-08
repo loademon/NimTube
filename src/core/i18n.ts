@@ -12,8 +12,8 @@ export const translations = {
       darkTheme: 'Koyu Tema',
     },
     hero: {
-      title: 'Video & Ses İndirici',
-      subtitle: 'YouTube linkini yapıştırın, dilediğiniz kalitede doğrudan indirin.',
+      title: 'NimTube — YouTube Video & Müzik İndirici',
+      subtitle: 'YouTube videolarını ve ses akışlarını 4K, 1080p ve MP3 kalitesinde doğrudan indirin.',
       placeholder: 'https://youtube.com/watch?v=...',
       paste: 'Yapıştır',
       clear: 'Temizle',
@@ -219,8 +219,8 @@ export const translations = {
       darkTheme: 'Dark Theme',
     },
     hero: {
-      title: 'Video & Audio Downloader',
-      subtitle: 'Paste any YouTube link, download in any quality directly.',
+      title: 'NimTube — YouTube Video & Audio Downloader',
+      subtitle: 'Download YouTube videos and audio at full quality (4K, 1080p, MP3) directly in your browser.',
       placeholder: 'https://youtube.com/watch?v=...',
       paste: 'Paste',
       clear: 'Clear',

@@ -11,12 +11,38 @@ export interface ExtensionStatus {
 
 let pollingTimer: any = null;
 
-let currentStatus: ExtensionStatus = {
-  available: false,
-  version: null,
-  outdated: false,
-  latestVersion: LATEST_EXTENSION_VERSION,
-};
+function getInitialStatus(): ExtensionStatus {
+  if (typeof window === 'undefined') {
+    return {
+      available: false,
+      version: null,
+      outdated: false,
+      latestVersion: LATEST_EXTENSION_VERSION,
+    };
+  }
+  try {
+    const cachedAvailable = localStorage.getItem('nimtube_ext_available') === 'true';
+    const cachedVersion = localStorage.getItem('nimtube_ext_version');
+    const outdated = Boolean(
+      cachedAvailable && cachedVersion && compareVersions(cachedVersion, LATEST_EXTENSION_VERSION) < 0
+    );
+    return {
+      available: cachedAvailable,
+      version: cachedVersion,
+      outdated,
+      latestVersion: LATEST_EXTENSION_VERSION,
+    };
+  } catch {
+    return {
+      available: false,
+      version: null,
+      outdated: false,
+      latestVersion: LATEST_EXTENSION_VERSION,
+    };
+  }
+}
+
+let currentStatus: ExtensionStatus = getInitialStatus();
 
 const listeners = new Set<(available: boolean, status: ExtensionStatus) => void>();
 
@@ -48,6 +74,18 @@ function updateStatus(available: boolean, version: string | null) {
     outdated,
     latestVersion: LATEST_EXTENSION_VERSION,
   };
+
+  if (typeof window !== 'undefined') {
+    try {
+      if (available) {
+        localStorage.setItem('nimtube_ext_available', 'true');
+        if (version) localStorage.setItem('nimtube_ext_version', version);
+      } else {
+        localStorage.removeItem('nimtube_ext_available');
+        localStorage.removeItem('nimtube_ext_version');
+      }
+    } catch {}
+  }
 
   if (changed) {
     listeners.forEach((fn) => {

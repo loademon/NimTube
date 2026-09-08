@@ -10,7 +10,6 @@ import { HistoryModal } from './components/HistoryModal';
 import { HowItWorks } from './components/HowItWorks';
 import { ExtensionPage } from './components/ExtensionPage';
 import { ExtensionModal } from './components/ExtensionModal';
-import { HomeSeoSection } from './components/HomeSeoSection';
 import { engine } from './core/engine';
 import { Language } from './core/i18n';
 import { getHistory, addToHistory, HistoryItem } from './core/storage/history';
@@ -310,8 +309,8 @@ export const App: React.FC = () => {
               initialUrl={initialSearchUrl}
             />
 
-            {/* Video & Format Details or SEO Section */}
-            {videoInfo ? (
+            {/* Video & Format Details */}
+            {videoInfo && (
               <div className="animate-in fade-in slide-in-from-bottom-2 duration-200">
                 <VideoCard video={videoInfo} lang={lang} />
                 <FormatSelector
@@ -324,8 +323,6 @@ export const App: React.FC = () => {
                   lang={lang}
                 />
               </div>
-            ) : (
-              <HomeSeoSection lang={lang} />
             )}
           </>
         )}

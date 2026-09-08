@@ -263,27 +263,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.type === 'FETCH_SEGMENT_BATCH') {
         const { baseUrl, startSq, count } = message.payload;
 
-        const match = new URL(baseUrl).host.match(/^rr(\d+)---(.+)$/);
-        const rest = match ? match[2] : null;
-
         const fetchOne = async (sq) => {
-          try {
-            const u = new URL(baseUrl);
-            if (rest) {
-              const shardNum = (sq % 5) + 1; // Shard across rr1..rr5
-              u.host = `rr${shardNum}---${rest}`;
+          let retries = 2;
+          while (retries >= 0) {
+            try {
+              const u = new URL(baseUrl);
+              u.searchParams.set('sq', String(sq));
+              const res = await fetch(u.toString());
+              if (!res.ok) {
+                if (res.status === 204) return new Uint8Array(0);
+                throw new Error(`HTTP ${res.status}`);
+              }
+              const buf = await res.arrayBuffer();
+              return new Uint8Array(buf);
+            } catch (err) {
+              retries--;
+              if (retries < 0) throw err;
+              await new Promise((r) => setTimeout(r, 200));
             }
-            u.searchParams.set('sq', String(sq));
-            const res = await fetch(u.toString());
-            if (!res.ok) {
-              if (res.status === 204) return new Uint8Array(0);
-              throw new Error(`HTTP ${res.status}`);
-            }
-            const buf = await res.arrayBuffer();
-            return new Uint8Array(buf);
-          } catch (err) {
-            return new Uint8Array(0);
           }
+          return new Uint8Array(0);
         };
 
         const promises = [];

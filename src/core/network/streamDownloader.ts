@@ -28,24 +28,8 @@ const CHUNK_SIZE = 8 * 1024 * 1024; // 8MB per chunk
 const CONCURRENCY = 4; // 4 concurrent connections
 const SEGMENT_CONCURRENCY = 24; // 24 concurrent connections for DASH segments
 
-export function buildShardedUrl(baseUrl: string, shardIndex: number): string {
-  try {
-    const u = new URL(baseUrl);
-    const match = u.host.match(/^rr(\d+)---(.+)$/);
-    if (match) {
-      const rest = match[2];
-      const shardNum = (shardIndex % 5) + 1; // Cycles through rr1, rr2, rr3, rr4, rr5
-      u.host = `rr${shardNum}---${rest}`;
-    }
-    return u.toString();
-  } catch {
-    return baseUrl;
-  }
-}
-
 export function buildSegmentUrl(baseUrl: string, sq: number): string {
-  const sharded = buildShardedUrl(baseUrl, sq);
-  const u = new URL(sharded);
+  const u = new URL(baseUrl);
   u.searchParams.set('sq', String(sq));
   return u.toString();
 }
@@ -265,6 +249,11 @@ async function downloadSegmentedStream(
     }
 
     console.warn('[StreamDownloader] Doğrudan indirmede aksaklık yaşandı, eklenti katmanına geçiliyor:', activeError);
+    // Reset state completely before falling back to extension tier!
+    nextSq = 0;
+    completedCount = 0;
+    totalDownloadedBytes = 0;
+    segmentBuffers.fill(null);
     activeError = null;
   }
 
@@ -274,7 +263,7 @@ async function downloadSegmentedStream(
     const BATCH_SIZE = 10;
     const totalBatches = Math.ceil(totalSegments / BATCH_SIZE);
     const batchBuffers: (Uint8Array | null)[] = new Array(totalBatches).fill(null);
-    let nextBatchIndex = Math.floor(nextSq / BATCH_SIZE);
+    let nextBatchIndex = 0;
 
     try {
       const BATCH_WORKERS = 4;
@@ -289,10 +278,12 @@ async function downloadSegmentedStream(
 
           const buf = await fetchSegmentBatchViaExtension(url, startSq, count);
 
-          if (buf && buf.byteLength > 0) {
-            batchBuffers[bIdx] = new Uint8Array(buf);
-            totalDownloadedBytes += buf.byteLength;
+          if (!buf || buf.byteLength === 0) {
+            throw new Error(`Toplu parça indirme boş döndü (sq=${startSq})`);
           }
+
+          batchBuffers[bIdx] = new Uint8Array(buf);
+          totalDownloadedBytes += buf.byteLength;
           completedCount += count;
           reportProgress();
         }
@@ -300,6 +291,10 @@ async function downloadSegmentedStream(
 
       const promises = Array.from({ length: Math.min(BATCH_WORKERS, totalBatches) }, () => batchWorker());
       await Promise.all(promises);
+
+      if (totalDownloadedBytes === 0) {
+        throw new Error('Toplu indirme verisi boş döndü.');
+      }
 
       const completeBuffer = new Uint8Array(totalDownloadedBytes);
       let offset = 0;
@@ -523,13 +518,12 @@ export async function downloadStreamWithProgress(
         if (!chunk) break;
 
         const range = `bytes=${chunk.start}-${chunk.end}`;
-        const targetUrl = buildShardedUrl(url, chunk.index);
         let arrayBuf: ArrayBuffer | null = null;
 
         // Path A: Direct Native Fetch (Zero IPC, Zero Base64)
         if (canDirectFetch) {
           try {
-            const res = await fetch(targetUrl, { headers: { 'Range': range }, signal });
+            const res = await fetch(url, { headers: { 'Range': range }, signal });
             if (res.ok || res.status === 206) {
               arrayBuf = await res.arrayBuffer();
             }
@@ -541,7 +535,7 @@ export async function downloadStreamWithProgress(
         // Path B: Direct via Extension
         if (!arrayBuf && useExtension) {
           try {
-            arrayBuf = await fetchChunkViaExtension(targetUrl, range);
+            arrayBuf = await fetchChunkViaExtension(url, range);
           } catch (extErr) {
             console.warn(`[StreamDownloader] Eklenti parçası başarısız (${range}), yedek deneniyor:`, extErr);
             arrayBuf = null;
@@ -553,7 +547,7 @@ export async function downloadStreamWithProgress(
           if (!proxyUrl && useExtension) {
             throw new Error(`Eklenti ile parça indirilemedi (${range})`);
           }
-          const proxyTarget = proxyUrl ? `${proxyUrl}${encodeURIComponent(targetUrl)}` : targetUrl;
+          const proxyTarget = proxyUrl ? `${proxyUrl}${encodeURIComponent(url)}` : url;
           const res = await fetch(proxyTarget, {
             headers: { 'Range': range },
             signal,

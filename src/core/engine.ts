@@ -60,11 +60,25 @@ class NimTubeEngine {
         );
 
         this.ffmpegWorker.onmessage = (e) => {
-          const { id, type, buffer, error } = e.data;
+          const { id, type, buffer, error, message } = e.data;
+
+          if (type === 'ffmpeg_log') {
+            console.log(`%c[FFmpeg Log]%c ${message}`, 'color: #38bdf8; font-weight: bold;', 'color: inherit;');
+            return;
+          }
+          if (type === 'status') {
+            console.log(`%c[FFmpeg Status]%c ${message}`, 'color: #34d399; font-weight: bold;', 'color: inherit;');
+            return;
+          }
+          if (type === 'mux_progress') {
+            return;
+          }
+
           if (id && this.messageCallbacks.has(id)) {
             const { resolve, reject } = this.messageCallbacks.get(id)!;
             this.messageCallbacks.delete(id);
             if (type.endsWith('_error')) {
+              console.error('[FFmpeg Worker Failure]:', error);
               reject(new Error(error || 'FFmpeg işlemi başarısız'));
             } else {
               resolve(buffer);
@@ -155,7 +169,9 @@ class NimTubeEngine {
               statusMessage: `${format.qualityLabel} indiriliyor: %${prog.percentage} (${prog.speedFormatted})`,
             });
           },
-          signal
+          signal,
+          videoInfo.duration,
+          format.filesize
         );
 
         onProgress({
@@ -219,7 +235,9 @@ class NimTubeEngine {
               statusMessage: `Görüntü akışı indiriliyor: %${prog.percentage} (${prog.speedFormatted})`,
             });
           },
-          signal
+          signal,
+          videoInfo.duration,
+          format.filesize
         );
 
         // Stage 2: Download Audio Track (50% - 80% overall weight)
@@ -250,10 +268,11 @@ class NimTubeEngine {
               statusMessage: `Ses akışı indiriliyor: %${prog.percentage} (${prog.speedFormatted})`,
             });
           },
-          signal
+          signal,
+          videoInfo.duration
         );
 
-        // Stage 3: FFmpeg WebAssembly Lossless Muxing (80% - 95%)
+        // Stage 3: Pure TypeScript 64-bit Lossless Muxing (80% - 95%)
         onProgress({
           stage: 'muxing',
           percentage: 82,
@@ -262,23 +281,55 @@ class NimTubeEngine {
           speed: 0,
           speedFormatted: '',
           etaSeconds: 0,
-          statusMessage: 'Görüntü ve ses FFmpeg WebAssembly ile birleştiriliyor (Kayıpsız)...',
+          statusMessage: 'Görüntü ve ses kayıpsız birleştiriliyor (Muxing)...',
         });
 
-        const ffmpeg = this.ensureFFmpegWorker();
-
-        const muxedBuffer = await this.sendWorkerMessage(
-          ffmpeg,
-          'mux',
-          {
+        let muxedBuffer: ArrayBuffer | null = null;
+        try {
+          const { losslessMux } = await import('./muxer/streamMuxer');
+          muxedBuffer = await losslessMux({
             videoBuffer,
             audioBuffer,
-            videoExt: format.ext,
-            audioExt: 'm4a',
             outputExt: 'mp4',
-          },
-          [videoBuffer, audioBuffer]
-        );
+            onProgress: (pct, msg) => {
+              const scaled = 80 + Math.round(pct * 0.15);
+              onProgress({
+                stage: 'muxing',
+                percentage: scaled,
+                downloadedBytes: videoBuffer.byteLength + audioBuffer.byteLength,
+                totalBytes: videoBuffer.byteLength + audioBuffer.byteLength,
+                speed: 0,
+                speedFormatted: '',
+                etaSeconds: 0,
+                statusMessage: msg,
+              });
+            },
+          });
+        } catch (muxErr) {
+          console.warn('[NimTube Engine] StreamMuxer hatası, FFmpeg fallback deneniyor:', muxErr);
+          const totalRawMb = (videoBuffer.byteLength + audioBuffer.byteLength) / (1024 * 1024);
+          if (totalRawMb < 1200) {
+            const ffmpeg = this.ensureFFmpegWorker();
+            muxedBuffer = await this.sendWorkerMessage(
+              ffmpeg,
+              'mux',
+              {
+                videoBuffer,
+                audioBuffer,
+                videoExt: format.ext,
+                audioExt: 'm4a',
+                outputExt: 'mp4',
+              },
+              [videoBuffer, audioBuffer]
+            );
+          } else {
+            throw muxErr;
+          }
+        }
+
+        if (!muxedBuffer) {
+          throw new Error('Birleştirme çıktısı oluşturulamadı.');
+        }
 
         // Stage 4: Save to Disk
         onProgress({
@@ -314,6 +365,7 @@ class NimTubeEngine {
 
       return true;
     } catch (err: any) {
+      console.error('[NimTube Engine] downloadVideo hatası:', err);
       if (err.name === 'AbortError') {
         onProgress({
           stage: 'idle',
@@ -448,6 +500,7 @@ class NimTubeEngine {
 
       return true;
     } catch (err: any) {
+      console.error('[NimTube Engine] downloadAudio hatası:', err);
       if (err.name === 'AbortError') return false;
       onProgress({
         stage: 'error',

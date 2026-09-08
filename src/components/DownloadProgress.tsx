@@ -155,9 +155,9 @@ export const DownloadProgress: React.FC<DownloadProgressProps> = ({
         </div>
 
         {isError && progress.error && (
-          <p className="mt-1.5 text-xs text-red-400 font-mono">
+          <div className="mt-2.5 p-2 bg-red-950/40 border border-red-800/40 rounded-lg text-xs text-red-300 font-mono whitespace-pre-wrap max-h-48 overflow-y-auto select-text leading-relaxed">
             {progress.error}
-          </p>
+          </div>
         )}
       </div>
     </div>

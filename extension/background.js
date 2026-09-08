@@ -4,7 +4,7 @@ function arrayBufferToBase64(buffer) {
   let binary = '';
   const bytes = new Uint8Array(buffer);
   const len = bytes.byteLength;
-  const CHUNK = 8192;
+  const CHUNK = 32768;
   for (let i = 0; i < len; i += CHUNK) {
     const slice = bytes.subarray(i, Math.min(i + CHUNK, len));
     binary += String.fromCharCode.apply(null, slice);
@@ -82,7 +82,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     try {
       if (message.type === 'PING') {
-        const ver = chrome.runtime.getManifest ? chrome.runtime.getManifest().version : '1.0.4';
+        const ver = chrome.runtime.getManifest ? chrome.runtime.getManifest().version : '1.0.6';
         sendResponse({ success: true, version: ver });
         return;
       }
@@ -185,21 +185,44 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       // 2. Size Probe using Range 0-0
       if (message.type === 'PROBE_SIZE') {
         const { url } = message.payload;
-        const probeRes = await fetch(url, {
-          headers: {
-            'Range': 'bytes=0-0',
-          },
-        });
+        try {
+          const probeRes = await fetch(url, {
+            headers: {
+              'Range': 'bytes=0-0',
+            },
+          });
 
-        const contentRange = probeRes.headers.get('content-range');
-        const contentLength = probeRes.headers.get('content-length');
-        sendResponse({
-          success: true,
-          status: probeRes.status,
-          contentRange,
-          contentLength,
-        });
-        return;
+          const contentRange = probeRes.headers.get('content-range');
+          const contentLength = probeRes.headers.get('content-length');
+          let headSeqNum = probeRes.headers.get('x-head-seqnum');
+          let seqNum = probeRes.headers.get('x-sequence-num');
+          const contentType = probeRes.headers.get('content-type');
+
+          // If it's a live/segmented stream and headSeqNum was not on bytes=0-0 probe, try sq=0
+          if (!headSeqNum && (url.includes('noclen=1') || url.includes('source=yt_live_broadcast') || contentRange?.endsWith('/1'))) {
+            try {
+              const u0 = new URL(url);
+              u0.searchParams.set('sq', '0');
+              const sqRes = await fetch(u0.toString());
+              headSeqNum = sqRes.headers.get('x-head-seqnum');
+              if (!seqNum) seqNum = sqRes.headers.get('x-sequence-num');
+            } catch {}
+          }
+
+          sendResponse({
+            success: true,
+            status: probeRes.status,
+            contentRange,
+            contentLength,
+            headSeqNum,
+            seqNum,
+            contentType,
+          });
+          return;
+        } catch (probeErr) {
+          sendResponse({ success: false, error: probeErr?.message || 'Probe hatası' });
+          return;
+        }
       }
 
       // 3. Parallel Range Chunk Fetch
@@ -210,6 +233,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         const res = await fetch(url, { headers });
         if (!res.ok) {
+          if (res.status === 204) {
+            // End of stream segment (No content)
+            sendResponse({
+              success: true,
+              base64: '',
+              byteLength: 0,
+              status: 204,
+            });
+            return;
+          }
           sendResponse({ success: false, error: `HTTP ${res.status}` });
           return;
         }
@@ -221,6 +254,61 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           success: true,
           base64: base64Data,
           byteLength: buffer.byteLength,
+          status: res.status,
+        });
+        return;
+      }
+
+      // 4. Turbo Segment Batch Fetch (Downloads N segments concurrently in Service Worker and merges them)
+      if (message.type === 'FETCH_SEGMENT_BATCH') {
+        const { baseUrl, startSq, count } = message.payload;
+
+        const match = new URL(baseUrl).host.match(/^rr(\d+)---(.+)$/);
+        const rest = match ? match[2] : null;
+
+        const fetchOne = async (sq) => {
+          try {
+            const u = new URL(baseUrl);
+            if (rest) {
+              const shardNum = (sq % 5) + 1; // Shard across rr1..rr5
+              u.host = `rr${shardNum}---${rest}`;
+            }
+            u.searchParams.set('sq', String(sq));
+            const res = await fetch(u.toString());
+            if (!res.ok) {
+              if (res.status === 204) return new Uint8Array(0);
+              throw new Error(`HTTP ${res.status}`);
+            }
+            const buf = await res.arrayBuffer();
+            return new Uint8Array(buf);
+          } catch (err) {
+            return new Uint8Array(0);
+          }
+        };
+
+        const promises = [];
+        for (let i = 0; i < count; i++) {
+          promises.push(fetchOne(startSq + i));
+        }
+
+        const chunks = await Promise.all(promises);
+        let totalLen = 0;
+        for (const c of chunks) totalLen += c.byteLength;
+
+        const merged = new Uint8Array(totalLen);
+        let offset = 0;
+        for (const c of chunks) {
+          merged.set(c, offset);
+          offset += c.byteLength;
+        }
+
+        const base64Data = arrayBufferToBase64(merged.buffer);
+        sendResponse({
+          success: true,
+          base64: base64Data,
+          byteLength: totalLen,
+          startSq,
+          count,
         });
         return;
       }

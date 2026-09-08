@@ -1,6 +1,4 @@
-// NimTube Client-Side Extension Bridge
-
-export const LATEST_EXTENSION_VERSION = '1.0.4';
+export const LATEST_EXTENSION_VERSION = '1.0.6';
 
 export interface ExtensionStatus {
   available: boolean;
@@ -98,39 +96,72 @@ function updateStatus(available: boolean, version: string | null) {
   }
 }
 
-// Convert base64 to ArrayBuffer
-function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  const binaryString = atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
+// Fast synchronous base64 to ArrayBuffer using lookup table (avoids DOM fetch/data URI lock contention)
+const b64Lookup = new Uint8Array(256);
+const b64Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+for (let i = 0; i < 64; i++) {
+  b64Lookup[b64Chars.charCodeAt(i)] = i;
+}
+
+export function base64ToArrayBuffer(b64Str: string): ArrayBuffer {
+  if (!b64Str) return new ArrayBuffer(0);
+  const len = b64Str.length;
+  let placeHolders = 0;
+  if (b64Str[len - 1] === '=') placeHolders++;
+  if (b64Str[len - 2] === '=') placeHolders++;
+  const byteLength = (len * 3) / 4 - placeHolders;
+  const bytes = new Uint8Array(byteLength);
+
+  let curByte = 0;
+  for (let i = 0; i < len; i += 4) {
+    const a = b64Lookup[b64Str.charCodeAt(i)];
+    const b = b64Lookup[b64Str.charCodeAt(i + 1)];
+    const c = b64Lookup[b64Str.charCodeAt(i + 2)];
+    const d = b64Lookup[b64Str.charCodeAt(i + 3)];
+
+    bytes[curByte++] = (a << 2) | (b >> 4);
+    if (curByte < byteLength) bytes[curByte++] = ((b & 15) << 4) | (c >> 2);
+    if (curByte < byteLength) bytes[curByte++] = ((c & 3) << 6) | (d & 63);
   }
   return bytes.buffer;
+}
+
+const pendingRequests = new Map<string, {
+  resolve: (val: any) => void;
+  reject: (err: any) => void;
+  timeout: any;
+}>();
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('message', (event: MessageEvent) => {
+    if (event.source !== window || !event.data) return;
+    const { source, requestId } = event.data;
+    if (source !== 'nimtube-extension' || !requestId) return;
+
+    const pending = pendingRequests.get(requestId);
+    if (!pending) return;
+
+    pendingRequests.delete(requestId);
+    clearTimeout(pending.timeout);
+
+    if (event.data.success) {
+      pending.resolve(event.data);
+    } else {
+      pending.reject(new Error(event.data.error || 'Eklenti işlemi başarısız oldu.'));
+    }
+  });
 }
 
 function sendExtensionRequest(type: string, payload: any, timeoutMs = 25000): Promise<any> {
   return new Promise((resolve, reject) => {
     const requestId = Math.random().toString(36).substring(2, 10);
     const timeout = setTimeout(() => {
-      window.removeEventListener('message', handleResponse);
+      pendingRequests.delete(requestId);
       reject(new Error('Eklenti yanıt vermedi (Zaman aşımı).'));
     }, timeoutMs);
 
-    function handleResponse(event: MessageEvent) {
-      if (event.source !== window || !event.data) return;
-      if (event.data.source === 'nimtube-extension' && event.data.requestId === requestId) {
-        clearTimeout(timeout);
-        window.removeEventListener('message', handleResponse);
-        if (event.data.success) {
-          resolve(event.data);
-        } else {
-          reject(new Error(event.data.error || 'Eklenti işlemi başarısız oldu.'));
-        }
-      }
-    }
+    pendingRequests.set(requestId, { resolve, reject, timeout });
 
-    window.addEventListener('message', handleResponse);
     window.postMessage(
       {
         source: 'nimtube-client',
@@ -213,28 +244,82 @@ export async function resolveVideoViaExtension(videoId: string): Promise<any> {
   return res.data;
 }
 
-// 2. Probe content length via extension
-export async function probeSizeViaExtension(url: string): Promise<number> {
+export interface StreamProbeResult {
+  totalBytes: number;
+  isSegmented: boolean;
+  headSeqNum: number;
+}
+
+// 2. Probe content length or sequence count via extension
+export async function probeStreamViaExtension(url: string, timeoutMs = 8000): Promise<StreamProbeResult> {
   try {
-    const res = await sendExtensionRequest('PROBE_SIZE', { url });
+    const res = await sendExtensionRequest('PROBE_SIZE', { url }, timeoutMs);
+    const headSeq = res.headSeqNum ? parseInt(res.headSeqNum, 10) : 0;
+    const isLiveNoclen = url.includes('noclen=1') || url.includes('source=yt_live_broadcast') || url.includes('live=1');
+
+    if (headSeq > 0 || isLiveNoclen || res.contentRange?.endsWith('/1')) {
+      return {
+        totalBytes: 0,
+        isSegmented: true,
+        headSeqNum: headSeq || (res.seqNum ? parseInt(res.seqNum, 10) : 0),
+      };
+    }
+
     if (res.contentRange) {
       const match = res.contentRange.match(/\/(\d+)$/);
-      if (match) return parseInt(match[1], 10);
+      if (match) {
+        const val = parseInt(match[1], 10);
+        if (val > 1) {
+          return { totalBytes: val, isSegmented: false, headSeqNum: 0 };
+        }
+      }
     }
+
     if (res.contentLength) {
-      return parseInt(res.contentLength, 10);
+      const len = parseInt(res.contentLength, 10);
+      if (len > 1) {
+        return { totalBytes: len, isSegmented: false, headSeqNum: 0 };
+      }
     }
   } catch (err) {
     console.warn('Extension probe size failed:', err);
   }
-  return 0;
+  return { totalBytes: 0, isSegmented: false, headSeqNum: 0 };
+}
+
+export async function probeSizeViaExtension(url: string): Promise<number> {
+  const info = await probeStreamViaExtension(url);
+  return info.totalBytes;
 }
 
 // 3. Fetch Range chunk via extension
 export async function fetchChunkViaExtension(url: string, range: string): Promise<ArrayBuffer> {
   const res = await sendExtensionRequest('FETCH_CHUNK', { url, range }, 45000);
+  if (res.base64 === undefined || res.base64 === null) {
+    throw new Error(res.error || 'Eklentiden veri döndürülemedi.');
+  }
   if (!res.base64) {
-    throw new Error('Eklentiden boş veri döndü.');
+    return new ArrayBuffer(0);
+  }
+  return base64ToArrayBuffer(res.base64);
+}
+
+// 4. Turbo Parallel Batch Fetch for DASH Segments
+export async function fetchSegmentBatchViaExtension(
+  baseUrl: string,
+  startSq: number,
+  count: number
+): Promise<ArrayBuffer> {
+  const res = await sendExtensionRequest(
+    'FETCH_SEGMENT_BATCH',
+    { baseUrl, startSq, count },
+    60000
+  );
+  if (res.base64 === undefined || res.base64 === null) {
+    throw new Error(res.error || 'Eklentiden toplu veri alınamadı.');
+  }
+  if (!res.base64) {
+    return new ArrayBuffer(0);
   }
   return base64ToArrayBuffer(res.base64);
 }

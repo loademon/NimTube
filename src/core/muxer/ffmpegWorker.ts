@@ -7,6 +7,16 @@ let isInitializing = false;
 
 const FFMPEG_CORE_BASE = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
 
+const MAX_LOG_LINES = 40;
+const recentLogs: string[] = [];
+
+function appendLog(msg: string) {
+  recentLogs.push(msg);
+  if (recentLogs.length > MAX_LOG_LINES) {
+    recentLogs.shift();
+  }
+}
+
 async function initFFmpeg(): Promise<FFmpeg> {
   if (ffmpeg && isLoaded) return ffmpeg;
   if (isInitializing) {
@@ -23,6 +33,7 @@ async function initFFmpeg(): Promise<FFmpeg> {
     ffmpeg = new FFmpeg();
 
     ffmpeg.on('log', ({ message }) => {
+      appendLog(message);
       self.postMessage({ type: 'ffmpeg_log', message });
     });
 
@@ -45,6 +56,7 @@ async function initFFmpeg(): Promise<FFmpeg> {
     return ffmpeg;
   } catch (err: any) {
     isInitializing = false;
+    console.error('[FFmpegWorker] initFFmpeg hatası:', err);
     throw new Error(`FFmpeg yüklenemedi: ${err?.message || err}`);
   }
 }
@@ -67,7 +79,12 @@ self.onmessage = async (e: MessageEvent) => {
 
     try {
       const ff = await initFFmpeg();
-      self.postMessage({ type: 'status', message: 'Video ve ses parçaları FFmpeg belleğine yazılıyor...' });
+      const videoMb = (videoBuffer.byteLength / (1024 * 1024)).toFixed(1);
+      const audioMb = (audioBuffer.byteLength / (1024 * 1024)).toFixed(1);
+      self.postMessage({ 
+        type: 'status', 
+        message: `Video (${videoMb} MB) ve ses (${audioMb} MB) FFmpeg belleğine yazılıyor...` 
+      });
 
       const inVideoName = `input_video.${videoExt || 'mp4'}`;
       const inAudioName = `input_audio.${audioExt || 'm4a'}`;
@@ -87,7 +104,11 @@ self.onmessage = async (e: MessageEvent) => {
         outName
       ];
 
-      await ff.exec(args);
+      const exitCode = await ff.exec(args);
+      if (exitCode !== 0) {
+        const snippet = recentLogs.slice(-15).join('\n');
+        throw new Error(`FFmpeg birleştirme komutu başarısız oldu (Çıkış kodu: ${exitCode}).${snippet ? '\n\nSon FFmpeg logları:\n' + snippet : ''}`);
+      }
 
       self.postMessage({ type: 'status', message: 'Birleştirilen dosya okunuyor...' });
       const resultData = await ff.readFile(outName);
@@ -108,10 +129,17 @@ self.onmessage = async (e: MessageEvent) => {
         [buffer]
       );
     } catch (err: any) {
+      console.error('[FFmpegWorker Mux Error]:', err);
+      const snippet = recentLogs.slice(-15).join('\n');
+      const baseErr = err?.message || String(err) || 'FFmpeg birleştirme hatası.';
+      const detailedError = snippet && !baseErr.includes(snippet)
+        ? `${baseErr}\n\nSon FFmpeg Logları:\n${snippet}`
+        : baseErr;
+
       self.postMessage({ 
         id, 
         type: 'mux_error', 
-        error: err?.message || 'FFmpeg birleştirme hatası.' 
+        error: detailedError
       });
     }
   }
@@ -146,7 +174,11 @@ self.onmessage = async (e: MessageEvent) => {
         ];
       }
 
-      await ff.exec(args);
+      const exitCode = await ff.exec(args);
+      if (exitCode !== 0) {
+        const snippet = recentLogs.slice(-15).join('\n');
+        throw new Error(`FFmpeg ses dönüştürme komutu başarısız oldu (Çıkış kodu: ${exitCode}).${snippet ? '\n\nSon FFmpeg logları:\n' + snippet : ''}`);
+      }
 
       const resultData = await ff.readFile(outAudioName);
 
@@ -163,10 +195,17 @@ self.onmessage = async (e: MessageEvent) => {
         [buffer]
       );
     } catch (err: any) {
+      console.error('[FFmpegWorker Convert Error]:', err);
+      const snippet = recentLogs.slice(-15).join('\n');
+      const baseErr = err?.message || String(err) || 'Ses dönüştürme hatası.';
+      const detailedError = snippet && !baseErr.includes(snippet)
+        ? `${baseErr}\n\nSon FFmpeg Logları:\n${snippet}`
+        : baseErr;
+
       self.postMessage({ 
         id, 
         type: 'convert_error', 
-        error: err?.message || 'Ses dönüştürme hatası.' 
+        error: detailedError
       });
     }
   }

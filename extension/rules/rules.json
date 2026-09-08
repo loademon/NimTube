@@ -7,11 +7,17 @@
       "requestHeaders": [
         { "header": "Origin", "operation": "set", "value": "https://www.youtube.com" },
         { "header": "Referer", "operation": "set", "value": "https://www.youtube.com/" }
+      ],
+      "responseHeaders": [
+        { "header": "Access-Control-Allow-Origin", "operation": "set", "value": "*" },
+        { "header": "Access-Control-Allow-Methods", "operation": "set", "value": "GET, HEAD, POST, OPTIONS" },
+        { "header": "Access-Control-Allow-Headers", "operation": "set", "value": "*" },
+        { "header": "Access-Control-Expose-Headers", "operation": "set", "value": "*" }
       ]
     },
     "condition": {
       "urlFilter": "*://*.youtube.com/*",
-      "resourceTypes": ["xmlhttprequest"]
+      "resourceTypes": ["xmlhttprequest", "other"]
     }
   },
   {
@@ -22,11 +28,17 @@
       "requestHeaders": [
         { "header": "Origin", "operation": "set", "value": "https://www.youtube.com" },
         { "header": "Referer", "operation": "set", "value": "https://www.youtube.com/" }
+      ],
+      "responseHeaders": [
+        { "header": "Access-Control-Allow-Origin", "operation": "set", "value": "*" },
+        { "header": "Access-Control-Allow-Methods", "operation": "set", "value": "GET, HEAD, OPTIONS" },
+        { "header": "Access-Control-Allow-Headers", "operation": "set", "value": "*" },
+        { "header": "Access-Control-Expose-Headers", "operation": "set", "value": "Content-Length, Content-Range, Accept-Ranges, x-head-seqnum, x-sequence-num" }
       ]
     },
     "condition": {
       "urlFilter": "*://*.googlevideo.com/*",
-      "resourceTypes": ["xmlhttprequest", "media"]
+      "resourceTypes": ["xmlhttprequest", "media", "other"]
     }
   }
 ]

@@ -15,7 +15,7 @@ function getExtensionVersion() {
   try {
     return chrome.runtime.getManifest().version;
   } catch (e) {
-    return '1.0.4';
+    return '1.0.6';
   }
 }
 
@@ -49,23 +49,42 @@ window.addEventListener('message', (event) => {
     return;
   }
 
-  chrome.runtime.sendMessage({ type, payload }, (response) => {
-    if (chrome.runtime.lastError) {
+  try {
+    if (!chrome.runtime || !chrome.runtime.id) {
       window.postMessage({
         source: 'nimtube-extension',
         requestId,
         success: false,
-        error: chrome.runtime.lastError.message,
+        error: 'Eklenti yenilendi. Lütfen sayfayı yenileyin (F5).',
       }, '*');
       return;
     }
 
+    chrome.runtime.sendMessage({ type, payload }, (response) => {
+      if (chrome.runtime.lastError) {
+        window.postMessage({
+          source: 'nimtube-extension',
+          requestId,
+          success: false,
+          error: chrome.runtime.lastError.message,
+        }, '*');
+        return;
+      }
+
+      window.postMessage({
+        source: 'nimtube-extension',
+        requestId,
+        ...response,
+      }, '*');
+    });
+  } catch (err) {
     window.postMessage({
       source: 'nimtube-extension',
       requestId,
-      ...response,
+      success: false,
+      error: 'Eklenti bağlantısı koptu. Lütfen sayfayı yenileyin (F5).',
     }, '*');
-  });
+  }
 });
 
 // --- YouTube Native In-Player Context Menu Injection ---

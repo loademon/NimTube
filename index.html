@@ -97,60 +97,40 @@
               }
             }
           ]
+        },
+        {
+          "@type": "HowTo",
+          "@id": "https://nimtube.2615.us/#howto",
+          "name": "How to Download YouTube Videos in 4K & MP3 with NimTube",
+          "description": "Step-by-step guide to download YouTube videos and convert to MP3 directly in your browser using NimTube.",
+          "totalTime": "PT1M",
+          "step": [
+            {
+              "@type": "HowToStep",
+              "name": "Paste Video Link",
+              "text": "Copy any YouTube video or Shorts URL and paste it into the NimTube input box.",
+              "url": "https://nimtube.2615.us/#step1"
+            },
+            {
+              "@type": "HowToStep",
+              "name": "Select Resolution or Audio Format",
+              "text": "Choose your desired video quality (4K 60fps, 1080p, 720p) or MP3 320kbps audio format.",
+              "url": "https://nimtube.2615.us/#step2"
+            },
+            {
+              "@type": "HowToStep",
+              "name": "Download Directly",
+              "text": "Click Download to have WebAssembly FFmpeg merge and save the file directly to your disk without server limits.",
+              "url": "https://nimtube.2615.us/#step3"
+            }
+          ]
         }
       ]
     }
     </script>
   </head>
-  <body class="min-h-screen font-sans antialiased selection:bg-brand-500 selection:text-white">
-    <div id="root">
-      <!-- Semantic crawlable fallback for search engines and non-JS crawlers. Automatically replaced by React when mounted. -->
-      <main style="max-width: 800px; margin: 0 auto; padding: 2rem; font-family: system-ui, -apple-system, sans-serif; color: #e2e8f0; background-color: #0f172a;">
-        <header>
-          <h1>NimTube — Pure Client-Side YouTube Studio &amp; Downloader</h1>
-          <p>
-            <strong>NimTube</strong> is an open-source, client-side YouTube video downloader and audio converter. Download YouTube videos in 4K 60fps, 1440p, 1080p, and convert audio to MP3 directly in your browser without server bandwidth or quality loss.
-          </p>
-        </header>
-
-        <section>
-          <h2>Key Features</h2>
-          <ul>
-            <li><strong>Zero Server Bandwidth:</strong> All downloads stream directly between your computer and YouTube CDN using your own connection.</li>
-            <li><strong>4K &amp; 1080p Full Quality:</strong> Downloads separate video and audio streams and merges them seamlessly with in-browser WebAssembly FFmpeg.</li>
-            <li><strong>No Throttling (Speed Bypass):</strong> Uses 4 concurrent 8 MB range chunk workers to eliminate YouTube stream throttling.</li>
-            <li><strong>Direct-to-Disk Streaming:</strong> Streams large video files directly to your storage via File System Access API without bloating RAM.</li>
-            <li><strong>YouTube MP3 Converter:</strong> Extract and convert crystal-clear audio to MP3, AAC, or WAV locally.</li>
-            <li><strong>100% Open Source &amp; Private:</strong> No logs, no analytics, no third-party tracking, verified clean on VirusTotal.</li>
-          </ul>
-        </section>
-
-        <section>
-          <h2>NimTube YouTube Downloader — How It Works</h2>
-          <p>
-            Traditional video downloaders route video streams through proxy servers, causing long queues, low speeds, and privacy risks. 
-            NimTube runs directly in your browser using modern web standards including WebAssembly, Web Workers, and the File System Access API. 
-            With the companion NimTube Bridge extension, you can download any YouTube video directly using your own IP address at maximum bandwidth.
-          </p>
-        </section>
-
-        <section>
-          <h2>Frequently Asked Questions</h2>
-          <article>
-            <h3>What is NimTube?</h3>
-            <p>NimTube is a high-speed, client-side YouTube video downloader and media converter powered by WebAssembly.</p>
-          </article>
-          <article>
-            <h3>How do I download YouTube videos in 4K or 1080p?</h3>
-            <p>Simply paste any YouTube video link into NimTube, choose your desired resolution (4K, 1440p, 1080p, 720p), and click Download. NimTube muxes video and audio streams directly in your browser.</p>
-          </article>
-          <article>
-            <h3>Is NimTube safe and virus-free?</h3>
-            <p>Yes. The NimTube extension has a 0/64 clean score on VirusTotal and all source code is open source on GitHub.</p>
-          </article>
-        </section>
-      </main>
-    </div>
+  <body class="min-h-screen font-sans antialiased selection:bg-brand-500 selection:text-white" style="background-color: #09090b; color: #f4f4f5;">
+    <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

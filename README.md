@@ -1,7 +1,7 @@
 # NimTube — Pure Client-Side YouTube Studio & Downloader
 
 [![Live Web App](https://img.shields.io/badge/Live%20App-nimtube.2615.us-E62117?style=flat&logo=youtube&logoColor=white)](https://nimtube.2615.us/)
-[![VirusTotal Clean](https://img.shields.io/badge/VirusTotal-0%2F62%20Clean-emerald?style=flat&logo=virustotal)](https://www.virustotal.com/gui/file/807d3219a6ea18ef95a6b10913e46a79c3d95d57b62b94f8244b396ab6402a81/detection)
+[![VirusTotal Clean](https://img.shields.io/badge/VirusTotal-0%2F62%20Clean-emerald?style=flat&logo=virustotal)](https://www.virustotal.com/gui/file/43b49d652e60a575cf47ff6183485da03c9b3a844929634e4c25454446eeb9b0/detection)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 > 🌐 **Canlı Web Sitesi (Live Site):** [https://nimtube.2615.us/](https://nimtube.2615.us/)  
@@ -79,9 +79,9 @@ YouTube indirme araçları Google'ın mağaza politikaları gereği Chrome Web M
 
 ## Güvenlik ve Gizlilik
 
-[![VirusTotal Scan: 0/62 Clean](public/guide/virustotal-report.png)](https://www.virustotal.com/gui/file/807d3219a6ea18ef95a6b10913e46a79c3d95d57b62b94f8244b396ab6402a81/detection)
+[![VirusTotal Scan: 0/62 Clean](public/guide/virustotal-report.png)](https://www.virustotal.com/gui/file/43b49d652e60a575cf47ff6183485da03c9b3a844929634e4c25454446eeb9b0/detection)
 
-- **Otomatik CI/CD Güvenlik Doğrulaması:** GitHub Actions (`.github/workflows/ci.yml`), her kod değişiminde eklenti zip'ini derler, SHA-256 hash'ini hesaplar ve VirusTotal API v3 (`/api/v3/files/{id}`) üzerinden otomatik olarak tarama sonucunu teyit eder. [Resmi VirusTotal Raporunu İncele](https://www.virustotal.com/gui/file/807d3219a6ea18ef95a6b10913e46a79c3d95d57b62b94f8244b396ab6402a81/detection).
+- **Otomatik CI/CD Güvenlik Doğrulaması:** GitHub Actions (`.github/workflows/ci.yml`), her kod değişiminde eklenti zip'ini derler, SHA-256 hash'ini hesaplar ve VirusTotal API v3 (`/api/v3/files/{id}`) üzerinden otomatik olarak tarama sonucunu teyit eder. [Resmi VirusTotal Raporunu İncele](https://www.virustotal.com/gui/file/43b49d652e60a575cf47ff6183485da03c9b3a844929634e4c25454446eeb9b0/detection).
 - Eklenti yalnızca `*.youtube.com` ve `*.googlevideo.com` alan adlarına erişim izni ister.
 - Tarayıcı geçmişinize, çerezlerinize, şifrelerinize veya diğer sekmelerinize kesinlikle erişmez.
 - Hiçbir analitik, telemetri veya üçüncü parti izleyici içermez.

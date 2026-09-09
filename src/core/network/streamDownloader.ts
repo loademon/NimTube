@@ -119,7 +119,7 @@ async function downloadSegmentedStream(
   useExtension: boolean,
   onProgress: (update: DownloadProgressUpdate) => void,
   signal?: AbortSignal
-): Promise<ArrayBuffer> {
+): Promise<Blob> {
   const totalSegments = headSeqNum + 1;
   console.log(`%c[StreamDownloader]%c Canlı yayın sekans indirmesi başlatılıyor: ${totalSegments} parça (sq=0..${headSeqNum})`, 'color: #3b82f6; font-weight: bold;', 'color: inherit;');
 
@@ -222,13 +222,11 @@ async function downloadSegmentedStream(
     await Promise.all(workerPromises);
 
     if (!activeError) {
-      const completeBuffer = new Uint8Array(totalDownloadedBytes);
-      let offset = 0;
+      const parts: Uint8Array[] = [];
       for (let i = 0; i <= headSeqNum; i++) {
         const chunk = segmentBuffers[i];
         if (chunk) {
-          completeBuffer.set(chunk, offset);
-          offset += chunk.byteLength;
+          parts.push(chunk);
           segmentBuffers[i] = null;
         }
       }
@@ -245,7 +243,7 @@ async function downloadSegmentedStream(
         etaSeconds: 0,
       });
 
-      return completeBuffer.buffer;
+      return new Blob(parts as any, { type: 'video/mp4' });
     }
 
     console.warn('[StreamDownloader] Doğrudan indirmede aksaklık yaşandı, eklenti katmanına geçiliyor:', activeError);
@@ -296,13 +294,11 @@ async function downloadSegmentedStream(
         throw new Error('Toplu indirme verisi boş döndü.');
       }
 
-      const completeBuffer = new Uint8Array(totalDownloadedBytes);
-      let offset = 0;
+      const parts: Uint8Array[] = [];
       for (let i = 0; i < totalBatches; i++) {
         const chunk = batchBuffers[i];
         if (chunk) {
-          completeBuffer.set(chunk, offset);
-          offset += chunk.byteLength;
+          parts.push(chunk);
           batchBuffers[i] = null;
         }
       }
@@ -319,7 +315,7 @@ async function downloadSegmentedStream(
         etaSeconds: 0,
       });
 
-      return completeBuffer.buffer;
+      return new Blob(parts as any, { type: 'video/mp4' });
     } catch (batchErr) {
       console.warn('[StreamDownloader] Toplu indirme yapılamadı, bireysel paralel moda geçiliyor:', batchErr);
       useBatch = false;
@@ -392,14 +388,12 @@ async function downloadSegmentedStream(
 
   if (activeError) throw activeError;
 
-  // Assembling all segments in strict order into a single Fragmented MP4 Buffer
-  const completeBuffer = new Uint8Array(totalDownloadedBytes);
-  let offset = 0;
+  // Assembling all segments in strict order into a single Fragmented MP4 Blob
+  const parts: Uint8Array[] = [];
   for (let i = 0; i <= headSeqNum; i++) {
     const chunk = segmentBuffers[i];
     if (chunk) {
-      completeBuffer.set(chunk, offset);
-      offset += chunk.byteLength;
+      parts.push(chunk);
       segmentBuffers[i] = null; // Free memory immediately
     }
   }
@@ -416,7 +410,7 @@ async function downloadSegmentedStream(
     etaSeconds: 0,
   });
 
-  return completeBuffer.buffer;
+  return new Blob(parts as any, { type: 'video/mp4' });
 }
 
 export async function downloadStreamWithProgress(
@@ -426,7 +420,7 @@ export async function downloadStreamWithProgress(
   signal?: AbortSignal,
   expectedDurationSeconds?: number,
   knownFilesize?: number
-): Promise<ArrayBuffer> {
+): Promise<Blob> {
   const useExtension = isExtensionAvailable();
   const directOrProxyUrl = proxyUrl ? `${proxyUrl}${encodeURIComponent(url)}` : url;
 
@@ -482,9 +476,6 @@ export async function downloadStreamWithProgress(
   if (totalBytes > 0) {
     const sizeMb = (totalBytes / (1024 * 1024)).toFixed(2);
     console.log(`%c[StreamDownloader]%c Akış boyutu: ${sizeMb} MB (${totalBytes} bayt)`, 'color: #a855f7; font-weight: bold;', 'color: inherit;');
-    const completeBuffer = new Uint8Array(totalBytes);
-    let totalDownloaded = 0;
-
     // Create chunks list
     const chunks: { index: number; start: number; end: number }[] = [];
     for (let offset = 0; offset < totalBytes; offset += CHUNK_SIZE) {
@@ -494,6 +485,9 @@ export async function downloadStreamWithProgress(
         end: Math.min(totalBytes - 1, offset + CHUNK_SIZE - 1),
       });
     }
+
+    const chunkBuffers: (Uint8Array | null)[] = new Array(chunks.length).fill(null);
+    let totalDownloaded = 0;
 
     let nextChunkIndex = 0;
     let activeError: Error | null = null;
@@ -560,7 +554,7 @@ export async function downloadStreamWithProgress(
           arrayBuf = await res.arrayBuffer();
         }
 
-        completeBuffer.set(new Uint8Array(arrayBuf), chunk.start);
+        chunkBuffers[chunk.index] = new Uint8Array(arrayBuf);
         totalDownloaded += arrayBuf.byteLength;
 
         // Progress calculation
@@ -596,6 +590,15 @@ export async function downloadStreamWithProgress(
 
     await Promise.all(workerPromises);
 
+    const parts: Uint8Array[] = [];
+    for (let i = 0; i < chunkBuffers.length; i++) {
+      const c = chunkBuffers[i];
+      if (c) {
+        parts.push(c);
+        chunkBuffers[i] = null;
+      }
+    }
+
     onProgress({
       downloadedBytes: totalBytes,
       totalBytes,
@@ -605,14 +608,15 @@ export async function downloadStreamWithProgress(
       etaSeconds: 0,
     });
 
-    return completeBuffer.buffer;
+    return new Blob(parts as any, { type: 'video/mp4' });
   }
 
   // --- PATH C: FALLBACK SEQUENTIAL (Extension safe) ---
   console.warn('[StreamDownloader] Akış boyutu tespit edilemedi (0 bayt), sıralı indirmeye geçiliyor...');
   if (useExtension) {
     console.log('[StreamDownloader] Eklenti üzerinden doğrudan akış çekiliyor...');
-    return await fetchChunkViaExtension(url, '');
+    const buf = await fetchChunkViaExtension(url, '');
+    return new Blob([buf], { type: 'video/mp4' });
   }
 
   const res = await fetch(directOrProxyUrl, { signal });
@@ -631,11 +635,7 @@ export async function downloadStreamWithProgress(
     }
   }
 
-  const complete = new Uint8Array(downloaded);
-  let pos = 0;
-  for (const c of rawChunks) {
-    complete.set(c, pos);
-    pos += c.length;
-  }
-  return complete.buffer;
+  const completeBlob = new Blob(rawChunks as any, { type: 'video/mp4' });
+  rawChunks.length = 0;
+  return completeBlob;
 }

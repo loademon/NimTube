@@ -154,7 +154,7 @@ class NimTubeEngine {
           statusMessage: `${format.qualityLabel} video akışı indiriliyor...`,
         });
 
-        const videoBuffer = await downloadStreamWithProgress(
+        const videoBlob = await downloadStreamWithProgress(
           format.url,
           settings.corsProxyUrl,
           (prog) => {
@@ -177,8 +177,8 @@ class NimTubeEngine {
         onProgress({
           stage: 'saving',
           percentage: 100,
-          downloadedBytes: videoBuffer.byteLength,
-          totalBytes: videoBuffer.byteLength,
+          downloadedBytes: videoBlob.size,
+          totalBytes: videoBlob.size,
           speed: 0,
           speedFormatted: '',
           etaSeconds: 0,
@@ -189,7 +189,7 @@ class NimTubeEngine {
         await saveFileToDisk({
           filename,
           mimeType: format.ext === 'webm' ? 'video/webm' : 'video/mp4',
-          data: videoBuffer,
+          data: videoBlob,
           useFileSystemAccess: settings.useFileSystemAccess,
         });
 
@@ -219,7 +219,7 @@ class NimTubeEngine {
           statusMessage: `${format.qualityLabel} video parçası indiriliyor...`,
         });
 
-        const videoBuffer = await downloadStreamWithProgress(
+        const videoBlob = await downloadStreamWithProgress(
           format.url,
           settings.corsProxyUrl,
           (prog) => {
@@ -252,7 +252,7 @@ class NimTubeEngine {
           statusMessage: `Yüksek kaliteli ses parçası indiriliyor...`,
         });
 
-        const audioBuffer = await downloadStreamWithProgress(
+        const audioBlob = await downloadStreamWithProgress(
           audioUrl,
           settings.corsProxyUrl,
           (prog) => {
@@ -273,31 +273,32 @@ class NimTubeEngine {
         );
 
         // Stage 3: Pure TypeScript 64-bit Lossless Muxing (80% - 95%)
+        const totalRawBytes = videoBlob.size + audioBlob.size;
         onProgress({
           stage: 'muxing',
           percentage: 82,
-          downloadedBytes: videoBuffer.byteLength + audioBuffer.byteLength,
-          totalBytes: videoBuffer.byteLength + audioBuffer.byteLength,
+          downloadedBytes: totalRawBytes,
+          totalBytes: totalRawBytes,
           speed: 0,
           speedFormatted: '',
           etaSeconds: 0,
           statusMessage: 'Görüntü ve ses kayıpsız birleştiriliyor (Muxing)...',
         });
 
-        let muxedBuffer: ArrayBuffer | null = null;
+        let muxedBlob: Blob | null = null;
         try {
           const { losslessMux } = await import('./muxer/streamMuxer');
-          muxedBuffer = await losslessMux({
-            videoBuffer,
-            audioBuffer,
+          muxedBlob = await losslessMux({
+            videoBlob,
+            audioBlob,
             outputExt: 'mp4',
             onProgress: (pct, msg) => {
               const scaled = 80 + Math.round(pct * 0.15);
               onProgress({
                 stage: 'muxing',
                 percentage: scaled,
-                downloadedBytes: videoBuffer.byteLength + audioBuffer.byteLength,
-                totalBytes: videoBuffer.byteLength + audioBuffer.byteLength,
+                downloadedBytes: totalRawBytes,
+                totalBytes: totalRawBytes,
                 speed: 0,
                 speedFormatted: '',
                 etaSeconds: 0,
@@ -307,10 +308,12 @@ class NimTubeEngine {
           });
         } catch (muxErr) {
           console.warn('[NimTube Engine] StreamMuxer hatası, FFmpeg fallback deneniyor:', muxErr);
-          const totalRawMb = (videoBuffer.byteLength + audioBuffer.byteLength) / (1024 * 1024);
+          const totalRawMb = totalRawBytes / (1024 * 1024);
           if (totalRawMb < 1200) {
+            const videoBuffer = await videoBlob.arrayBuffer();
+            const audioBuffer = await audioBlob.arrayBuffer();
             const ffmpeg = this.ensureFFmpegWorker();
-            muxedBuffer = await this.sendWorkerMessage(
+            const muxedBuffer = await this.sendWorkerMessage(
               ffmpeg,
               'mux',
               {
@@ -322,12 +325,15 @@ class NimTubeEngine {
               },
               [videoBuffer, audioBuffer]
             );
+            if (muxedBuffer) {
+              muxedBlob = new Blob([muxedBuffer], { type: 'video/mp4' });
+            }
           } else {
             throw muxErr;
           }
         }
 
-        if (!muxedBuffer) {
+        if (!muxedBlob) {
           throw new Error('Birleştirme çıktısı oluşturulamadı.');
         }
 
@@ -335,8 +341,8 @@ class NimTubeEngine {
         onProgress({
           stage: 'saving',
           percentage: 98,
-          downloadedBytes: muxedBuffer.byteLength,
-          totalBytes: muxedBuffer.byteLength,
+          downloadedBytes: muxedBlob.size,
+          totalBytes: muxedBlob.size,
           speed: 0,
           speedFormatted: '',
           etaSeconds: 0,
@@ -347,7 +353,7 @@ class NimTubeEngine {
         await saveFileToDisk({
           filename,
           mimeType: 'video/mp4',
-          data: muxedBuffer,
+          data: muxedBlob,
           useFileSystemAccess: settings.useFileSystemAccess,
         });
       }
@@ -418,7 +424,7 @@ class NimTubeEngine {
         statusMessage: 'Yüksek kaliteli ses akışı indiriliyor...',
       });
 
-      const audioBuffer = await downloadStreamWithProgress(
+      const audioBlob = await downloadStreamWithProgress(
         audioFormat.url,
         settings.corsProxyUrl,
         (prog) => {
@@ -437,7 +443,7 @@ class NimTubeEngine {
         signal
       );
 
-      let finalBuffer: ArrayBuffer = audioBuffer;
+      let finalData: Blob | ArrayBuffer = audioBlob;
       let finalExt = targetType;
       let mimeType = targetType === 'mp3' ? 'audio/mpeg' : 'audio/mp4';
 
@@ -445,17 +451,18 @@ class NimTubeEngine {
         onProgress({
           stage: 'converting_audio',
           percentage: 80,
-          downloadedBytes: audioBuffer.byteLength,
-          totalBytes: audioBuffer.byteLength,
+          downloadedBytes: audioBlob.size,
+          totalBytes: audioBlob.size,
           speed: 0,
           speedFormatted: '',
           etaSeconds: 0,
           statusMessage: `MP3 (${settings.audioBitrate}) formatına dönüştürülüyor...`,
         });
 
+        const audioBuffer = await audioBlob.arrayBuffer();
         const ffmpeg = this.ensureFFmpegWorker();
 
-        finalBuffer = await this.sendWorkerMessage(
+        finalData = await this.sendWorkerMessage(
           ffmpeg,
           'convert_audio',
           {
@@ -468,11 +475,12 @@ class NimTubeEngine {
         );
       }
 
+      const finalSize = finalData instanceof Blob ? finalData.size : finalData.byteLength;
       onProgress({
         stage: 'saving',
         percentage: 98,
-        downloadedBytes: finalBuffer.byteLength,
-        totalBytes: finalBuffer.byteLength,
+        downloadedBytes: finalSize,
+        totalBytes: finalSize,
         speed: 0,
         speedFormatted: '',
         etaSeconds: 0,
@@ -483,7 +491,7 @@ class NimTubeEngine {
       await saveFileToDisk({
         filename,
         mimeType,
-        data: finalBuffer,
+        data: finalData,
         useFileSystemAccess: settings.useFileSystemAccess,
       });
 

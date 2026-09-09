@@ -3,7 +3,8 @@ import {
   Output,
   Mp4OutputFormat,
   WebMOutputFormat,
-  BufferTarget,
+  StreamTarget,
+  BlobSource,
   BufferSource,
   ALL_FORMATS,
   EncodedVideoPacketSource,
@@ -16,8 +17,10 @@ export interface MuxProgressCallback {
 }
 
 export interface MuxOptions {
-  videoBuffer: ArrayBuffer;
-  audioBuffer: ArrayBuffer;
+  videoBlob?: Blob | ArrayBuffer;
+  videoBuffer?: Blob | ArrayBuffer;
+  audioBlob?: Blob | ArrayBuffer;
+  audioBuffer?: Blob | ArrayBuffer;
   videoExt?: string;
   audioExt?: string;
   outputExt?: string;
@@ -25,20 +28,35 @@ export interface MuxOptions {
 }
 
 export async function losslessMux({
+  videoBlob,
   videoBuffer,
+  audioBlob,
   audioBuffer,
   outputExt = 'mp4',
   onProgress,
-}: MuxOptions): Promise<ArrayBuffer> {
+}: MuxOptions): Promise<Blob> {
   onProgress?.(5, 'Medya akışları ayrıştırılıyor (Demuxing)...');
 
+  const rawVideo = videoBlob || videoBuffer;
+  const rawAudio = audioBlob || audioBuffer;
+
+  if (!rawVideo) {
+    throw new Error('Video verisi bulunamadı.');
+  }
+  if (!rawAudio) {
+    throw new Error('Ses verisi bulunamadı.');
+  }
+
+  const videoSourceInst = rawVideo instanceof Blob ? new BlobSource(rawVideo) : new BufferSource(rawVideo);
+  const audioSourceInst = rawAudio instanceof Blob ? new BlobSource(rawAudio) : new BufferSource(rawAudio);
+
   const videoInput = new Input({
-    source: new BufferSource(videoBuffer),
+    source: videoSourceInst,
     formats: ALL_FORMATS,
   });
 
   const audioInput = new Input({
-    source: new BufferSource(audioBuffer),
+    source: audioSourceInst,
     formats: ALL_FORMATS,
   });
 
@@ -70,7 +88,15 @@ export async function losslessMux({
 
   const isWebM = outputExt.toLowerCase() === 'webm' || (videoTrack.codec === 'vp9' && audioTrack.codec === 'opus');
   const format = isWebM ? new WebMOutputFormat() : new Mp4OutputFormat();
-  const target = new BufferTarget();
+
+  const outputChunks: Uint8Array[] = [];
+  const writable = new WritableStream({
+    write(entry: { data: Uint8Array }) {
+      outputChunks.push(entry.data);
+    },
+  });
+
+  const target = new StreamTarget(writable, { chunked: true, chunkSize: 1024 * 1024 });
 
   const output = new Output({
     format,
@@ -116,11 +142,10 @@ export async function losslessMux({
   onProgress?.(92, 'MP4 konteyneri mühürleniyor (Finalizing)...');
   await output.finalize();
 
-  if (!target.buffer) {
-    throw new Error('Birleştirme çıktısı oluşturulamadı.');
-  }
+  const finalBlob = new Blob(outputChunks as any, { type: isWebM ? 'video/webm' : 'video/mp4' });
+  outputChunks.length = 0;
 
-  const finalMb = (target.buffer.byteLength / (1024 * 1024)).toFixed(2);
+  const finalMb = (finalBlob.size / (1024 * 1024)).toFixed(2);
   console.log(
     `%c[StreamMuxer]%c Tamamlandı: ${vCount} video karesi + ${aCount} ses karesi birleştirildi. Boyut: ${finalMb} MB`,
     'color: #10b981; font-weight: bold;',
@@ -128,5 +153,5 @@ export async function losslessMux({
   );
 
   onProgress?.(100, 'Birleştirme tamamlandı!');
-  return target.buffer;
+  return finalBlob;
 }

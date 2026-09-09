@@ -139,3 +139,8 @@ dist
 # Scratch testing directory
 scratch/
 
+# Chrome Extension local metadata
+_metadata/
+extension/_metadata/
+
+

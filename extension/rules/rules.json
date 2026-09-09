@@ -17,6 +17,14 @@
     },
     "condition": {
       "urlFilter": "*://*.youtube.com/*",
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "youtube-nocookie.com",
+        "google.com",
+        "googlevideo.com",
+        "ytimg.com",
+        "youtu.be"
+      ],
       "resourceTypes": ["xmlhttprequest", "other"]
     }
   },
@@ -38,6 +46,14 @@
     },
     "condition": {
       "urlFilter": "*://*.googlevideo.com/*",
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "youtube-nocookie.com",
+        "google.com",
+        "googlevideo.com",
+        "ytimg.com",
+        "youtu.be"
+      ],
       "resourceTypes": ["xmlhttprequest", "media", "other"]
     }
   }

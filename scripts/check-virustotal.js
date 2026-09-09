@@ -133,6 +133,17 @@ try {
   fs.writeFileSync(widgetJsonPath, JSON.stringify(cacheData, null, 2));
   console.log('Saved to public/virustotal-widget.json');
 
+  // Also update README.md permalink
+  const readmePath = path.resolve('README.md');
+  if (fs.existsSync(readmePath)) {
+    let readme = fs.readFileSync(readmePath, 'utf8');
+    readme = readme.replace(
+      /https:\/\/www\.virustotal\.com\/gui\/file\/[a-f0-9]{64}\/detection/g,
+      permalink
+    );
+    fs.writeFileSync(readmePath, readme);
+  }
+
   // Write to GitHub Actions Job Summary if available
   const summaryPath = process.env.GITHUB_STEP_SUMMARY;
   if (summaryPath && fs.existsSync(path.dirname(summaryPath))) {

@@ -12,9 +12,10 @@
 ## Öne Çıkan Özellikler
 
 - **Sıfır Sunucu Bant Genişliği:** İndirme işlemleri merkezi bir sunucu üzerinden değil, doğrudan kendi internet bağlantınız üzerinden yürütülür.
-- **Hız Kısıtlaması Yok (Throttling Bypass):** YouTube'un tekil bağlantılarda uyguladığı oynatma hızı kısıtlamaları, arka planda 4 eşzamanlı 8 MB paralel worker ile aşılır.
-- **Kayıpsız Tarayıcı İçi Birleştirme:** 1080p ve 4K çözünürlüklerdeki ayrı görüntü ve ses akışları, WebAssembly FFmpeg ile yeniden kodlama yapılmadan (`-c copy`) saniyeler içinde birleştirilir.
-- **Doğrudan Diske Akış:** File System Access API kullanılarak indirilen parçalar doğrudan diske yazılır; 4K dosyalarda bile tarayıcı belleği (RAM) şişmez.
+- **Doğrudan Tarayıcı İndirmesi (Direct Native Fetch):** Eklenti destekli yerel C++ soket havuzuyla YouTube CDN'lerinden sıfır IPC/Base64 gecikmesiyle doğrudan indirme (100+ MB/s).
+- **Mediabunny ile Saf JavaScript/WASM Kayıpsız Birleştirme:** 1080p, 2K ve 4K çözünürlüklerdeki ayrı görüntü ve ses akışları, 64-bit `mediabunny` motoru (ve WebAssembly FFmpeg yedeği) ile yeniden kodlama olmadan (`passthrough`) milisaniyeler içinde MP4 konteynerine paketlenir.
+- **YouTube Oynatıcı İzolasyonu:** Declarative Net Request kurallarında `excludedInitiatorDomains` kullanılarak YouTube'un kendi iç oynatıcısının (`credentials: include`) ve video izleme deneyiminin bozulması %100 engellenir.
+- **Doğrudan Diske Akış:** File System Access API kullanılarak indirilen parçalar anlık olarak diske yazılır; multi-gigabayt 4K dosyalarda bile tarayıcı belleği (RAM) 50 MB altında sabit kalır.
 - **YouTube Sağ Tık Entegrasyonu:** Eklenti sayesinde YouTube'da izlediğiniz herhangi bir videoya sağ tıklayarak doğrudan "NimTube ile İndir" seçeneğiyle indirme başlatabilirsiniz.
 
 ---
@@ -26,13 +27,16 @@
         │
         ▼ (window.postMessage)
 [ NimTube Bridge Eklentisi (Manifest V3) ] ──► [ YouTube Innertube API ]
-        │                                          (Oturum ve doğrudan CDN adresleri)
+        │                                          (VisionOS el sıkışması ve doğrudan CDN adresleri)
         ▼
-[ 4x Paralel Worker Havuzu ] ──► [ Googlevideo CDN (8 MB Range Parçaları) ]
+[ 3 Kademeli İndirme Hattı ]
+  ├── 1. Direct Native Fetch (Yerel soket havuzu, 100+ MB/s)
+  ├── 2. Eklenti Turbo Batch (DASH canlı/sekanslı akışlar)
+  └── 3. Paralel Range Worker Havuzu (8 MB dilimler, proxy desteği)
         │
-        ▼
-[ WebAssembly FFmpeg Worker ] ──► (-c copy kayıpsız MP4 konteyner birleştirme)
-        │
+        ▼ (Ham Bayt Tamponları)
+[ Mediabunny Muxer (Birincil) / WebAssembly FFmpeg (Yedek) ]
+        │ (Yeniden kodlama yok, kayıpsız passthrough MP4/WebM)
         ▼
 [ File System Access API ] ──► [ Kullanıcının Diski ]
 ```

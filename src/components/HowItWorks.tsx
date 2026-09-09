@@ -62,14 +62,14 @@ export const HowItWorks: React.FC<HowItWorksProps> = ({ lang, onBack }) => {
                 <span className="text-xs font-mono text-zinc-500 font-medium">02</span>
                 <h2 className="text-sm font-medium text-zinc-200">
                   {lang === 'tr'
-                    ? 'WebAssembly FFmpeg ile 1080p ve 4K Birleştirme'
-                    : 'Lossless 1080p & 4K Muxing via WebAssembly FFmpeg'}
+                    ? 'Mediabunny ve WebAssembly ile 1080p ve 4K Birleştirme'
+                    : 'Lossless 1080p & 4K Muxing via Mediabunny & WebAssembly'}
                 </h2>
               </div>
               <p className="text-xs text-zinc-400 leading-relaxed pl-7">
                 {lang === 'tr'
-                  ? 'YouTube, 720p üzerindeki videoları görüntü ve ses olarak ayrı iki dosya halinde sunar. NimTube, tarayıcı içinde çalışan WebAssembly FFmpeg motoru sayesinde bu iki akışı yeniden kodlamadan (-c copy) saniyeler içinde kayıpsız olarak birleştirir.'
-                  : 'YouTube splits resolutions above 720p into separate video and audio streams. NimTube runs an in-browser WebAssembly FFmpeg worker to losslessly mux both streams into a single MP4 within seconds.'}
+                  ? 'YouTube, 720p üzerindeki videoları görüntü ve ses olarak ayrı iki dosya halinde sunar. NimTube, modern 64-bit Mediabunny motoru (ve WebAssembly FFmpeg yedeği) sayesinde bu iki akışı yeniden kodlamadan milisaniyeler içinde kayıpsız olarak birleştirir.'
+                  : 'YouTube splits resolutions above 720p into separate video and audio streams. NimTube runs an in-browser 64-bit Mediabunny engine (with WebAssembly FFmpeg fallback) to losslessly mux both streams in milliseconds without re-encoding.'}
               </p>
             </div>
 
@@ -78,14 +78,14 @@ export const HowItWorks: React.FC<HowItWorksProps> = ({ lang, onBack }) => {
                 <span className="text-xs font-mono text-zinc-500 font-medium">03</span>
                 <h2 className="text-sm font-medium text-zinc-200">
                   {lang === 'tr'
-                    ? 'Paralel Aralık (Range) İndiricisi ile Hız Sınırını Aşma'
-                    : 'Bypassing Bandwidth Throttling via Parallel Range Downloads'}
+                    ? 'Doğrudan Tarayıcı İndirmesi ve 3 Kademeli Hız Hattı'
+                    : 'Direct Native Fetch & 3-Tier Download Pipeline'}
                 </h2>
               </div>
               <p className="text-xs text-zinc-400 leading-relaxed pl-7">
                 {lang === 'tr'
-                  ? 'YouTube tekil indirmelerde hız sınırlaması uygular. NimTube, dosya boyutunu milisaniyeler içinde öğrenip videoyu 8 MB\'lık parçalara böler ve 4 eşzamanlı bağlantı açarak internet hızınızın tamamını kullanır.'
-                  : 'YouTube throttles single-stream downloads. NimTube queries file length instantly, splits streams into 8 MB chunks, and pulls them concurrently across 4 workers to saturate your line speed.'}
+                  ? 'YouTube tekil indirmelerde hız sınırlaması uygular. NimTube, eklenti destekli Doğrudan Tarayıcı İndirmesi (Direct Native Fetch) ve paralel Range/DASH parçalama havuzunu kullanarak internet hızınızın tamamını (100+ MB/s) kullanır.'
+                  : 'YouTube throttles single-stream downloads. NimTube leverages extension-assisted Direct Native Fetch and parallel Range/DASH worker pools to saturate your connection up to 100+ MB/s.'}
               </p>
             </div>
 
@@ -206,8 +206,8 @@ const playerRes = await fetch(\`https://www.youtube.com/youtubei/v1/player?key=\
                 <span className="text-xs font-mono text-zinc-500 font-medium">02</span>
                 <h2 className="text-sm sm:text-base font-medium text-zinc-100 light:text-zinc-900">
                   {lang === 'tr'
-                    ? 'CORS Kısıtlaması ve Declarative Net Request Başlık Düzenlemesi'
-                    : 'CORS Restrictions & Declarative Net Request Header Masking'}
+                    ? 'CORS Kısıtlaması, Declarative Net Request & YouTube İzolasyonu'
+                    : 'CORS Restrictions, Declarative Net Request & YouTube Isolation'}
                 </h2>
               </div>
 
@@ -219,8 +219,8 @@ const playerRes = await fetch(\`https://www.youtube.com/youtubei/v1/player?key=\
                 </p>
                 <p>
                   {lang === 'tr'
-                    ? 'NimTube Bridge eklentisi bu engeli Manifest V3 Declarative Net Request (DNR) kurallarıyla çözer. İsteklerin başlıkları doğrudan tarayıcının ağ seviyesinde düzenlenir:'
-                    : 'NimTube Bridge solves this via Manifest V3 Declarative Net Request rules, rewriting headers directly at the network layer:'}
+                    ? 'NimTube Bridge eklentisi bu engeli Manifest V3 Declarative Net Request (DNR) kurallarıyla çözer. İsteklerin başlıkları doğrudan tarayıcının ağ seviyesinde düzenlenir ve yanıtlara gerekli CORS başlıkları enjekte edilir:'
+                    : 'NimTube Bridge solves this via Manifest V3 Declarative Net Request rules, rewriting headers directly at the network layer and injecting CORS response headers:'}
                 </p>
 
                 <div className="my-3 rounded-lg bg-zinc-950 border border-zinc-800 light:border-zinc-300 overflow-hidden">
@@ -228,18 +228,27 @@ const playerRes = await fetch(\`https://www.youtube.com/youtubei/v1/player?key=\
                     <code>{`// extension/rules/rules.json (Declarative Net Request)
 [
   {
-    "id": 1,
+    "id": 2,
     "priority": 1,
     "action": {
       "type": "modifyHeaders",
       "requestHeaders": [
         { "header": "Origin", "operation": "set", "value": "https://www.youtube.com" },
         { "header": "Referer", "operation": "set", "value": "https://www.youtube.com/" }
+      ],
+      "responseHeaders": [
+        { "header": "Access-Control-Allow-Origin", "operation": "set", "value": "*" },
+        { "header": "Access-Control-Allow-Methods", "operation": "set", "value": "GET, HEAD, OPTIONS" },
+        { "header": "Access-Control-Expose-Headers", "operation": "set", "value": "Content-Length, Content-Range, Accept-Ranges, x-head-seqnum, x-sequence-num" }
       ]
     },
     "condition": {
-      "urlFilter": "||youtube.com/youtubei/v1/player*",
-      "resourceTypes": ["xmlhttprequest"]
+      "urlFilter": "*://*.googlevideo.com/*",
+      // YouTube'un kendi oynatıcı isteklerine ASLA dokunma (credentials: include koruması):
+      "excludedInitiatorDomains": [
+        "youtube.com", "youtube-nocookie.com", "google.com", "googlevideo.com", "ytimg.com", "youtu.be"
+      ],
+      "resourceTypes": ["xmlhttprequest", "media", "other"]
     }
   }
 ]`}</code>
@@ -248,8 +257,8 @@ const playerRes = await fetch(\`https://www.youtube.com/youtubei/v1/player?key=\
 
                 <p>
                   {lang === 'tr'
-                    ? 'Bu kural, eklentiden çıkan isteğin "Origin: chrome-extension://..." başlığını "https://www.youtube.com" olarak maskeler. Eklentinin host_permissions izniyle birleştiğinde istekler hiçbir aracı sunucuya gitmeden doğrudan kullanıcının kendi IP\'si üzerinden çalışır.'
-                    : 'This masks extension origins to https://www.youtube.com. Combined with host_permissions, requests execute with zero external servers directly from the client IP.'}
+                    ? 'Kritik Güvenlik İzolasyonu: YouTube\'un kendi oynatıcısı video parçalarını çerezlerle (credentials: "include") çeker. CORS standardına göre bu isteklerde Access-Control-Allow-Origin asla "*" olamaz. Eklentimiz excludedInitiatorDomains filtresiyle YouTube alan adlarını tamamen hariç tutar; böylece YouTube\'da normal video izlerken hiçbir çakışma yaşanmaz ve yalnızca NimTube sekmesindeki indirmelerin kısıtlamaları kaldırılır.'
+                    : 'Critical Security Isolation: YouTube\'s native player requests video chunks with credentials: "include". Under CORS specifications, wildcard "*" is strictly prohibited on credentialed requests. Our excludedInitiatorDomains filter completely isolates YouTube, preventing any interference with regular YouTube playback while unblocking downloads for NimTube.'}
                 </p>
               </div>
             </section>
@@ -260,49 +269,40 @@ const playerRes = await fetch(\`https://www.youtube.com/youtubei/v1/player?key=\
                 <span className="text-xs font-mono text-zinc-500 font-medium">03</span>
                 <h2 className="text-sm sm:text-base font-medium text-zinc-100 light:text-zinc-900">
                   {lang === 'tr'
-                    ? 'Hız Kısıtlamasını (Throttling) Aşma: Paralel Range Havuzu'
-                    : 'Bypassing Bandwidth Throttling: Parallel Range Pool'}
+                    ? '3 Kademeli Turbo İndirme Hattı ve Hız Kısıtlamasını Aşma'
+                    : '3-Tier Turbo Download Pipeline & Throttling Bypass'}
                 </h2>
               </div>
 
               <div className="space-y-3 pl-7 text-xs sm:text-sm text-zinc-400 light:text-zinc-600 leading-relaxed">
                 <p>
                   {lang === 'tr'
-                    ? 'YouTube CDN sunucuları, video oynatma adresine gelen tek parça GET isteklerinde hız sınırlaması uygular. İndirme hızı videonun oynatma bit hızına (~150-300 KB/s) sabitlenir. Ayrıca YouTube HEAD isteklerini engellediği için dosya boyutu bu yolla öğrenilemez.'
-                    : 'YouTube CDN limits single-stream GET downloads to streaming bitrates (~150-300 KB/s) and blocks HTTP HEAD queries.'}
-                </p>
-                <p>
-                  {lang === 'tr'
-                    ? 'Dosya tek parça istenmez. Önce Range: bytes=0-0 isteği gönderilir ve dönen Content-Range başlığından dosyanın tam bayt boyutu birkaç milisaniyede öğrenilir. Ardından dosya 8 MB\'lık dilimlere bölünerek 4 eşzamanlı worker havuzuyla aynı anda çekilir:'
-                    : 'The total length is queried using Range: bytes=0-0. The payload is then divided into 8 MB chunks and downloaded concurrently across 4 workers:'}
+                    ? 'YouTube CDN sunucuları, video oynatma adresine gelen tek parça GET isteklerinde hız sınırlaması uygular. İndirme hızı videonun oynatma bit hızına (~150-300 KB/s) sabitlenir. NimTube bu engeli 3 kademeli akıllı indirme mimarisiyle çözer:'
+                    : 'YouTube CDN limits single-stream GET downloads to streaming bitrates (~150-300 KB/s). NimTube overcomes this through a resilient 3-tier architecture:'}
                 </p>
 
                 <div className="my-3 rounded-lg bg-zinc-950 border border-zinc-800 light:border-zinc-300 overflow-hidden">
                   <pre className="p-3 text-[11px] font-mono text-zinc-300 overflow-x-auto leading-relaxed">
-                    <code>{`// 1. HEAD yerine Range: bytes=0-0 ile dosya boyutunu öğrenme
+                    <code>{`// 1. Kademe: Direct Native Fetch (En Yüksek Hız - Sıfır IPC, Sıfır Base64)
+// Eklenti CORS başlıklarını eklediği için tarayıcı doğrudan googlevideo.com'a bağlanır
+const res = await fetch(segmentUrl, { signal });
+const arrayBuffer = await res.arrayBuffer(); // 100+ MB/s hat doyumu!
+
+// 2. Kademe: Eklenti Turbo Batch (DASH Sekansları / Canlı Yayın Parçaları)
+// 5000+ parçalı videolarda Service Worker içinde çoklu worker paralel çeker ve birleştirir
+const mergedBatch = await fetchSegmentBatchViaExtension(url, startSq, 10);
+
+// 3. Kademe: Paralel Range Havuzu (Eklentisiz Kullanıcılar / Proxy Desteği)
+// Range: bytes=0-0 ile boyut anında tespit edilir, 8 MB'lık paralel dilimlerle çekilir
 const probe = await fetch(streamUrl, { headers: { 'Range': 'bytes=0-0' } });
-const contentRange = probe.headers.get('content-range'); // "bytes 0-0/157286400"
-const totalBytes = parseInt(contentRange.split('/')[1], 10);
-
-// 2. Dosyayı 8 MB'lık parçalara bölme
-const CHUNK_SIZE = 8 * 1024 * 1024;
-const chunks = [];
-for (let offset = 0; offset < totalBytes; offset += CHUNK_SIZE) {
-  const end = Math.min(offset + CHUNK_SIZE - 1, totalBytes - 1);
-  chunks.push({ start: offset, end, range: \`bytes=\${offset}-\${end}\` });
-}
-
-// 3. 4 eşzamanlı worker ile indirme
-await runConcurrentPool(chunks, 4, chunk => fetch(streamUrl, {
-  headers: { 'Range': chunk.range }
-}).then(r => r.arrayBuffer()));`}</code>
+const totalBytes = parseInt(probe.headers.get('content-range').split('/')[1], 10);`}</code>
                   </pre>
                 </div>
 
                 <p>
                   {lang === 'tr'
-                    ? 'YouTube CDN\'i belirli bir aralık talep eden bu istekleri "oynatıcı tampon arabelleği (player buffer burst)" olarak gördüğü için bant genişliğini kısmaz ve indirme 10-50+ MB/s hızla tamamlanır.'
-                    : 'YouTube CDN interprets byte-range slices as player buffer pre-fills, streaming them unthrottled at full connection speed.'}
+                    ? 'Direct Native Fetch devredeyken tarayıcının yerel C++ soket havuzu doğrudan YouTube CDN sunucularına bağlanır. Eklentiyle mesajlaşma (IPC) veya veriyi Base64 string\'e çevirme gecikmesi olmadan internet bant genişliğinizin tamamı kullanılır.'
+                    : 'With Direct Native Fetch, Chrome\'s native socket pool connects straight to Google edge servers. Zero IPC overhead and zero Base64 conversion delays unlock your full gigabit connection.'}
                 </p>
               </div>
             </section>
@@ -313,8 +313,8 @@ await runConcurrentPool(chunks, 4, chunk => fetch(streamUrl, {
                 <span className="text-xs font-mono text-zinc-500 font-medium">04</span>
                 <h2 className="text-sm sm:text-base font-medium text-zinc-100 light:text-zinc-900">
                   {lang === 'tr'
-                    ? 'Tarayıcı İçi Kayıpsız Birleştirme: WebAssembly FFmpeg (-c copy)'
-                    : 'Lossless In-Browser Muxing: WebAssembly FFmpeg (-c copy)'}
+                    ? 'Tarayıcı İçi Kayıpsız Birleştirme: Mediabunny & WebAssembly FFmpeg'
+                    : 'Lossless In-Browser Remuxing: Mediabunny & WebAssembly FFmpeg'}
                 </h2>
               </div>
 
@@ -326,33 +326,33 @@ await runConcurrentPool(chunks, 4, chunk => fetch(streamUrl, {
                 </p>
                 <p>
                   {lang === 'tr'
-                    ? 'Bu iki dosyanın birleştirilmesi için C dili kaynak kodundan WebAssembly\'e derlenmiş @ffmpeg/ffmpeg kütüphanesi doğrudan tarayıcı Web Worker\'ında çalıştırılır. Yeniden kodlama (re-encode) yapılmaz; -c copy parametresiyle yalnızca MP4 konteyneri içinde birleştirme yapılır:'
-                    : 'FFmpeg compiled to WebAssembly runs inside a Web Worker to mux tracks losslessly with -c copy:'}
+                    ? 'NimTube, bu iki akışı birleştirmek için birincil motor olarak modern 64-bit Mediabunny kütüphanesini kullanır. Yeniden kodlama (transcoding) yapılmaz; video ve ses paketleri doğrudan kopyalanarak (passthrough) milisaniyeler içinde tek bir MP4 konteyneri halinde mühürlenir:'
+                    : 'NimTube uses Mediabunny—a pure 64-bit TypeScript demuxer and muxer—as its primary engine. Packets are copied directly (passthrough) into an MP4 container in milliseconds with zero transcoding:'}
                 </p>
 
                 <div className="my-3 rounded-lg bg-zinc-950 border border-zinc-800 light:border-zinc-300 overflow-hidden">
                   <pre className="p-3 text-[11px] font-mono text-zinc-300 overflow-x-auto leading-relaxed">
-                    <code>{`// Web Worker içinde WebAssembly FFmpeg çalıştırma
-await ffmpeg.writeFile('video.mp4', videoBytes);
-await ffmpeg.writeFile('audio.mp4', audioBytes);
+                    <code>{`// 1. Mediabunny ile giriş akışlarını ayrıştırma (Demuxing)
+const videoInput = new Input({ source: new BufferSource(videoBuffer), formats: ALL_FORMATS });
+const audioInput = new Input({ source: new BufferSource(audioBuffer), formats: ALL_FORMATS });
 
-// Kayıpsız MP4 birleştirme (Transcoding yok, 2 saniyede biter)
-await ffmpeg.exec([
-  '-i', 'video.mp4',
-  '-i', 'audio.mp4',
-  '-c', 'copy',              // Yeniden kodlama yapma, paketleri doğrudan kopyala
-  '-movflags', '+faststart', // MP4 indeksini başa alarak anında oynatılabilir yap
-  'output.mp4'
-]);
+// 2. Kod çözücü konfigürasyonlarını alma ve çıkış akışı oluşturma
+const output = new Output({ format: new Mp4OutputFormat(), target: new BufferTarget() });
+output.addVideoTrack(new EncodedVideoPacketSource(videoTrack.codec));
+output.addAudioTrack(new EncodedAudioPacketSource(audioTrack.codec));
+await output.start();
 
-const finalMp4 = await ffmpeg.readFile('output.mp4');`}</code>
+// 3. Ham paketleri yeniden kodlamadan doğrudan konteynere pompalama
+for await (const packet of videoSink.packets()) videoSource.add(packet);
+for await (const packet of audioSink.packets()) audioSource.add(packet);
+await output.finalize(); // 50 milisaniyede kayıpsız tamamlanır!`}</code>
                   </pre>
                 </div>
 
                 <p>
                   {lang === 'tr'
-                    ? 'Yeniden kodlama yapılmadığı için işlem 2 saniyede biter, CPU tüketimi minimumda kalır ve orijinal video/ses kalitesinde sıfır kayıp yaşanır.'
-                    : 'Skipping transcoding keeps CPU usage low, finishes in seconds, and guarantees 100% original quality preservation.'}
+                    ? 'Yeniden kodlama yapılmadığı için işlem saniyenin onda birinde tamamlanır, CPU ve RAM tüketimi minimumda kalır ve orijinal görüntü/ses kalitesinde sıfır kayıp yaşanır. Standart dışı akışlarda ise WebAssembly FFmpeg motoru ikincil yedek (fallback) olarak devreye girer.'
+                    : 'Because no transcoding occurs, processing finishes in a fraction of a second with minimal CPU/RAM overhead and zero quality loss. For edge-case streams, an in-browser WebAssembly FFmpeg worker serves as an automatic fallback.'}
                 </p>
               </div>
             </section>

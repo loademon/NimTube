@@ -3,7 +3,7 @@ import {
   Output,
   Mp4OutputFormat,
   WebMOutputFormat,
-  StreamTarget,
+  BufferTarget,
   BlobSource,
   BufferSource,
   ALL_FORMATS,
@@ -89,14 +89,7 @@ export async function losslessMux({
   const isWebM = outputExt.toLowerCase() === 'webm' || (videoTrack.codec === 'vp9' && audioTrack.codec === 'opus');
   const format = isWebM ? new WebMOutputFormat() : new Mp4OutputFormat();
 
-  const outputChunks: Uint8Array[] = [];
-  const writable = new WritableStream({
-    write(entry: { data: Uint8Array }) {
-      outputChunks.push(entry.data);
-    },
-  });
-
-  const target = new StreamTarget(writable, { chunked: true, chunkSize: 1024 * 1024 });
+  const target = new BufferTarget();
 
   const output = new Output({
     format,
@@ -142,8 +135,11 @@ export async function losslessMux({
   onProgress?.(92, 'MP4 konteyneri mühürleniyor (Finalizing)...');
   await output.finalize();
 
-  const finalBlob = new Blob(outputChunks as any, { type: isWebM ? 'video/webm' : 'video/mp4' });
-  outputChunks.length = 0;
+  if (!target.buffer) {
+    throw new Error('Birleştirme çıktısı oluşturulamadı.');
+  }
+
+  const finalBlob = new Blob([target.buffer], { type: isWebM ? 'video/webm' : 'video/mp4' });
 
   const finalMb = (finalBlob.size / (1024 * 1024)).toFixed(2);
   console.log(

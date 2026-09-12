@@ -41,7 +41,9 @@ function parseYtDlpOutput(data: any, originalUrl: string): VideoInfo {
     f.url && (f.vcodec === 'none' || !f.vcodec) && (f.acodec && f.acodec !== 'none')
   );
   audioStreams.sort((a: any, b: any) => (b.tbr || b.abr || 0) - (a.tbr || a.abr || 0));
-  const bestAudioStream = audioStreams[0];
+
+  const bestAacStream = audioStreams.find((f: any) => f.acodec?.includes('mp4a') || f.ext === 'm4a' || f.format_id === '140') || audioStreams[0];
+  const bestOpusStream = audioStreams.find((f: any) => f.acodec?.includes('opus') || f.ext === 'webm' || f.format_id === '251') || audioStreams[0];
 
   for (const f of rawFormats) {
     if (!f.url) continue;
@@ -49,6 +51,8 @@ function parseYtDlpOutput(data: any, originalUrl: string): VideoInfo {
     const isVideo = f.vcodec && f.vcodec !== 'none';
     const isAudio = f.acodec && f.acodec !== 'none';
     const isAdaptive = isVideo && !isAudio;
+    const isWebm = (f.ext || '').toLowerCase() === 'webm';
+    const matchedAudio = isWebm ? bestOpusStream : bestAacStream;
 
     const qualityLabel = f.format_note || (f.height ? `${f.height}p` : `${Math.round(f.tbr || 128)} kbps`);
     const size = f.filesize || f.filesize_approx;
@@ -67,8 +71,8 @@ function parseYtDlpOutput(data: any, originalUrl: string): VideoInfo {
       hasAudio: isAudio,
       isAdaptive: isAdaptive,
       url: f.url,
-      audioUrl: isAdaptive && bestAudioStream ? bestAudioStream.url : undefined,
-      audioFormatId: isAdaptive && bestAudioStream ? String(bestAudioStream.format_id) : undefined,
+      audioUrl: isAdaptive && matchedAudio ? matchedAudio.url : undefined,
+      audioFormatId: isAdaptive && matchedAudio ? String(matchedAudio.format_id) : undefined,
       bitrate: f.tbr,
     };
 

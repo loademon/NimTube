@@ -198,9 +198,27 @@ class NimTubeEngine {
         
         // Find matching best audio stream
         let audioUrl = format.audioUrl;
+        const isTargetMp4 = (format.ext || 'mp4').toLowerCase() === 'mp4';
+
+        if (isTargetMp4) {
+          const aacAudio = videoInfo.audioFormats.find(
+            f => f.ext === 'm4a' || (f as any).audioCodec?.includes('mp4a') || (f as any).mimeType?.includes('mp4') || f.formatId === '140'
+          );
+          if (aacAudio?.url) {
+            audioUrl = aacAudio.url;
+          }
+        } else {
+          const opusAudio = videoInfo.audioFormats.find(
+            f => f.ext === 'webm' || (f as any).audioCodec?.includes('opus') || (f as any).mimeType?.includes('webm') || f.formatId === '251'
+          );
+          if (opusAudio?.url) {
+            audioUrl = opusAudio.url;
+          }
+        }
+
         if (!audioUrl) {
-          const bestAudio = videoInfo.audioFormats[0] || videoInfo.formats.find(f => f.hasAudio && !f.hasVideo);
-          audioUrl = bestAudio?.url;
+          const fallbackAudio = videoInfo.audioFormats[0] || videoInfo.formats.find(f => f.hasAudio && !f.hasVideo);
+          audioUrl = fallbackAudio?.url;
         }
 
         if (!audioUrl) {

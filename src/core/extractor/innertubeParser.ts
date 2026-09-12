@@ -43,7 +43,9 @@ export function parseInnertubeOutput(data: any, videoId: string, originalUrl: st
 
   const audioStreams = rawFormats.filter((f: any) => f.mimeType?.startsWith('audio/'));
   audioStreams.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0));
-  const bestAudioStream = audioStreams[0];
+
+  const bestAacStream = audioStreams.find((f: any) => f.mimeType?.includes('audio/mp4') || f.itag === 140) || audioStreams[0];
+  const bestOpusStream = audioStreams.find((f: any) => f.mimeType?.includes('audio/webm') || f.itag === 251) || audioStreams[0];
 
   for (const f of rawFormats) {
     if (!f.url) continue;
@@ -51,13 +53,15 @@ export function parseInnertubeOutput(data: any, videoId: string, originalUrl: st
     const isVideo = f.mimeType?.startsWith('video/');
     const isAudio = f.mimeType?.startsWith('audio/');
     const isAdaptive = isVideo && !f.audioQuality;
+    const isWebm = f.mimeType?.includes('webm');
+    const matchedAudio = isWebm ? bestOpusStream : bestAacStream;
 
     const formatObj: VideoFormat = {
       formatId: String(f.itag),
       qualityLabel: f.qualityLabel || (isAudio ? `${Math.round((f.bitrate || 128000) / 1000)} kbps` : `${f.height || 360}p`),
       resolution: f.width && f.height ? `${f.width}x${f.height}` : undefined,
       fps: f.fps,
-      ext: f.mimeType?.includes('webm') ? 'webm' : (isAudio ? 'm4a' : 'mp4'),
+      ext: isWebm ? 'webm' : (isAudio ? 'm4a' : 'mp4'),
       filesize: f.contentLength ? parseInt(f.contentLength, 10) : undefined,
       filesizeFormatted: formatBytes(f.contentLength ? parseInt(f.contentLength, 10) : undefined),
       videoCodec: f.mimeType?.split('codecs="')?.[1]?.split('"')?.[0],
@@ -65,8 +69,8 @@ export function parseInnertubeOutput(data: any, videoId: string, originalUrl: st
       hasAudio: isAudio || Boolean(f.audioQuality),
       isAdaptive: isAdaptive,
       url: f.url,
-      audioUrl: isAdaptive && bestAudioStream ? bestAudioStream.url : undefined,
-      audioFormatId: isAdaptive && bestAudioStream ? String(bestAudioStream.itag) : undefined,
+      audioUrl: isAdaptive && matchedAudio ? matchedAudio.url : undefined,
+      audioFormatId: isAdaptive && matchedAudio ? String(matchedAudio.itag) : undefined,
       bitrate: f.bitrate,
     };
 

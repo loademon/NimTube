@@ -37,6 +37,10 @@ export const translations = {
       m4aTitle: 'M4A / AAC (Orijinal Akış)',
       m4aDesc: 'Dönüştürme yok • Kayıpsız orijinal',
       noSubtitles: 'Altyazı bulunamadı.',
+      macMode: 'Mac / QuickTime Uyumluluk Modu (H.264 MP4)',
+      macModeDesc: '1080p üzeri videoları QuickTime için GPU ile H.264 MP4 formatına dönüştürür.',
+      macBadge: 'Mac Uyumlu',
+      speedModeBadge: 'Orijinal Akış',
     },
     progress: {
       downloading: 'İndiriliyor & İşleniyor',
@@ -52,6 +56,8 @@ export const translations = {
     },
     settings: {
       title: 'Ayarlar',
+      macModeTitle: 'Varsayılan Mac Uyumluluk Modu',
+      macModeDesc: 'İndirmeleri Apple QuickTime Player ile doğrudan uyumlu H.264 MP4 formatında hazırlar.',
       storageTitle: 'Dosya Kaydetme',
       storageCheckbox: 'Doğrudan diske akış (File System Access)',
       storageDesc: 'Büyük 4K/1080p videoları tarayıcı belleğini şişirmeden doğrudan diske kaydeder.',
@@ -245,6 +251,10 @@ export const translations = {
       m4aTitle: 'M4A / AAC (Original Stream)',
       m4aDesc: 'No conversion • Lossless original stream',
       noSubtitles: 'No subtitles found.',
+      macMode: 'Mac / QuickTime Compatibility Mode (H.264 MP4)',
+      macModeDesc: 'Converts >1080p streams to H.264 MP4 via GPU for native QuickTime playback.',
+      macBadge: 'Mac Ready',
+      speedModeBadge: 'Original Stream',
     },
     progress: {
       downloading: 'Downloading & Processing',
@@ -260,6 +270,8 @@ export const translations = {
     },
     settings: {
       title: 'Settings',
+      macModeTitle: 'Default Mac Compatibility Mode',
+      macModeDesc: 'Prepares downloads in native Apple QuickTime-compatible H.264 MP4 format.',
       storageTitle: 'File Saving',
       storageCheckbox: 'Direct disk streaming (File System Access)',
       storageDesc: 'Streams large 4K/1080p files directly to local storage without memory bloat.',

@@ -65,6 +65,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSave} className="p-4 space-y-4">
+          {/* Mac Compatibility Mode */}
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-zinc-300 light:text-zinc-700 block mb-1">
+              {t.macModeTitle}
+            </label>
+            <label className="flex items-start gap-2.5 p-2.5 rounded-lg border border-zinc-800 light:border-zinc-200 bg-zinc-950/40 light:bg-zinc-50 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={Boolean(formState.macCompatibilityMode)}
+                onChange={(e) =>
+                  setFormState({ ...formState, macCompatibilityMode: e.target.checked })
+                }
+                className="mt-0.5 accent-indigo-500 rounded"
+              />
+              <div className="text-xs">
+                <span className="font-medium text-zinc-200 light:text-zinc-800 block">
+                  {t.macModeTitle}
+                </span>
+                <p className="text-[11px] text-zinc-500 mt-0.5">
+                  {t.macModeDesc}
+                </p>
+              </div>
+            </label>
+          </div>
+
           {/* Storage Mode */}
           <div className="space-y-1">
             <label className="text-xs font-medium text-zinc-300 light:text-zinc-700 block mb-1">

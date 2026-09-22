@@ -83,11 +83,18 @@ function parseYtDlpOutput(data: any, originalUrl: string): VideoInfo {
     }
   }
 
-  // Sort video formats by height/resolution descending
+  // Sort video formats by height/resolution descending, preferring H.264 (AVC) on same resolution
   formats.sort((a, b) => {
     const resA = parseInt(a.qualityLabel) || 0;
     const resB = parseInt(b.qualityLabel) || 0;
-    return resB - resA;
+    if (resB !== resA) return resB - resA;
+
+    const aIsAvc = (a.videoCodec || '').includes('avc') || a.ext === 'mp4';
+    const bIsAvc = (b.videoCodec || '').includes('avc') || b.ext === 'mp4';
+    if (aIsAvc && !bIsAvc) return -1;
+    if (!aIsAvc && bIsAvc) return 1;
+
+    return (b.fps || 30) - (a.fps || 30);
   });
 
   const subtitles: SubtitleTrack[] = [];
@@ -176,7 +183,14 @@ function parseInnertubeOutput(data: any, videoId: string, originalUrl: string): 
   formats.sort((a, b) => {
     const resA = parseInt(a.qualityLabel) || 0;
     const resB = parseInt(b.qualityLabel) || 0;
-    return resB - resA;
+    if (resB !== resA) return resB - resA;
+
+    const aIsAvc = (a.videoCodec || '').includes('avc') || a.ext === 'mp4';
+    const bIsAvc = (b.videoCodec || '').includes('avc') || b.ext === 'mp4';
+    if (aIsAvc && !bIsAvc) return -1;
+    if (!aIsAvc && bIsAvc) return 1;
+
+    return (b.fps || 30) - (a.fps || 30);
   });
 
   const durationSec = parseInt(videoDetails.lengthSeconds || '0', 10);

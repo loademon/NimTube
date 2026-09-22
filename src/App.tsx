@@ -22,6 +22,14 @@ import type {
   AppSettings 
 } from './core/types';
 
+export const isAppleDevice = (): boolean => {
+  if (typeof navigator === 'undefined') return false;
+  return (
+    /Mac|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    /Mac/i.test((navigator as any).platform || '')
+  );
+};
+
 const DEFAULT_SETTINGS: AppSettings = {
   corsProxyUrl: '',
   customProxyList: [],
@@ -30,6 +38,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   audioBitrate: '320k',
   defaultFormat: 'video_best',
   debugLogs: false,
+  macCompatibilityMode: isAppleDevice(),
 };
 
 export const App: React.FC = () => {
@@ -74,7 +83,15 @@ export const App: React.FC = () => {
     const saved = localStorage.getItem('nimtube_settings');
     if (saved) {
       try {
-        return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+        const parsed = JSON.parse(saved);
+        return {
+          ...DEFAULT_SETTINGS,
+          ...parsed,
+          macCompatibilityMode:
+            parsed.macCompatibilityMode !== undefined
+              ? parsed.macCompatibilityMode
+              : isAppleDevice(),
+        };
       } catch {
         return DEFAULT_SETTINGS;
       }
@@ -365,6 +382,7 @@ export const App: React.FC = () => {
                   onDownloadVideo={handleDownloadVideo}
                   onDownloadAudio={handleDownloadAudio}
                   onDownloadSubtitle={handleDownloadSubtitle}
+                  onUpdateSettings={(newPartial) => setSettings({ ...settings, ...newPartial })}
                   lang={lang}
                 />
               </div>

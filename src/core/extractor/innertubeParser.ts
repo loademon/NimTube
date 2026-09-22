@@ -84,7 +84,15 @@ export function parseInnertubeOutput(data: any, videoId: string, originalUrl: st
   formats.sort((a, b) => {
     const resA = parseInt(a.qualityLabel) || 0;
     const resB = parseInt(b.qualityLabel) || 0;
-    return resB - resA;
+    if (resB !== resA) return resB - resA;
+
+    // For same resolution (e.g. 1080p), prioritize H.264 (avc1) for universal & Mac QuickTime compatibility
+    const aIsAvc = a.videoCodec?.includes('avc') || a.ext === 'mp4';
+    const bIsAvc = b.videoCodec?.includes('avc') || b.ext === 'mp4';
+    if (aIsAvc && !bIsAvc) return -1;
+    if (!aIsAvc && bIsAvc) return 1;
+
+    return (b.fps || 30) - (a.fps || 30);
   });
 
   const durationSec = parseInt(videoDetails.lengthSeconds || '0', 10);

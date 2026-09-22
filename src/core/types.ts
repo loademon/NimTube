@@ -76,6 +76,7 @@ export interface AppSettings {
   audioBitrate: '320k' | '256k' | '192k' | '128k';
   defaultFormat: 'video_best' | 'audio_mp3';
   debugLogs: boolean;
+  macCompatibilityMode: boolean;
 }
 
 export interface WorkerLogMessage {

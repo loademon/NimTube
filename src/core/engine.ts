@@ -304,12 +304,16 @@ class NimTubeEngine {
         });
 
         let muxedBlob: Blob | null = null;
+        let finalExt: 'mp4' | 'webm' = settings.macCompatibilityMode ? 'mp4' : (format.ext === 'webm' ? 'webm' : 'mp4');
+        let finalMime: 'video/mp4' | 'video/webm' = finalExt === 'webm' ? 'video/webm' : 'video/mp4';
+
         try {
           const { losslessMux } = await import('./muxer/streamMuxer');
-          muxedBlob = await losslessMux({
+          const muxResult = await losslessMux({
             videoBlob,
             audioBlob,
-            outputExt: 'mp4',
+            outputExt: settings.macCompatibilityMode ? 'mp4' : (format.ext === 'webm' ? 'webm' : 'mp4'),
+            macCompatibilityMode: settings.macCompatibilityMode,
             onProgress: (pct, msg) => {
               const scaled = 80 + Math.round(pct * 0.15);
               onProgress({
@@ -324,6 +328,9 @@ class NimTubeEngine {
               });
             },
           });
+          muxedBlob = muxResult.blob;
+          finalExt = muxResult.ext;
+          finalMime = muxResult.mimeType;
         } catch (muxErr) {
           console.warn('[NimTube Engine] StreamMuxer hatası, FFmpeg fallback deneniyor:', muxErr);
           const totalRawMb = totalRawBytes / (1024 * 1024);
@@ -339,12 +346,12 @@ class NimTubeEngine {
                 audioBuffer,
                 videoExt: format.ext,
                 audioExt: 'm4a',
-                outputExt: 'mp4',
+                outputExt: finalExt,
               },
               [videoBuffer, audioBuffer]
             );
             if (muxedBuffer) {
-              muxedBlob = new Blob([muxedBuffer], { type: 'video/mp4' });
+              muxedBlob = new Blob([muxedBuffer], { type: finalMime });
             }
           } else {
             throw muxErr;
@@ -364,13 +371,14 @@ class NimTubeEngine {
           speed: 0,
           speedFormatted: '',
           etaSeconds: 0,
-          statusMessage: '1080p/4K video diske kaydediliyor...',
+          statusMessage: 'Video diske kaydediliyor...',
         });
 
-        const filename = `${sanitizeFilename(videoInfo.title)} [${format.qualityLabel} 60fps].mp4`;
+        const fpsTag = format.fps && format.fps >= 50 ? ` ${format.fps}fps` : '';
+        const filename = `${sanitizeFilename(videoInfo.title)} [${format.qualityLabel}${fpsTag}].${finalExt}`;
         await saveFileToDisk({
           filename,
-          mimeType: 'video/mp4',
+          mimeType: finalMime,
           data: muxedBlob,
           useFileSystemAccess: settings.useFileSystemAccess,
         });

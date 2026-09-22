@@ -47,133 +47,113 @@ export const FormatSelector: React.FC<FormatSelectorProps> = ({
 
   return (
     <div className="pro-card p-4">
-      {/* Segmented Control */}
-      <div className="flex items-center gap-1 p-1 bg-zinc-900/90 light:bg-zinc-100 rounded-lg border border-zinc-800/80 light:border-zinc-200 mb-4 max-w-md">
-        <button
-          onClick={() => setActiveTab('video')}
-          className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
-            activeTab === 'video'
-              ? 'bg-zinc-800 light:bg-white text-zinc-100 light:text-zinc-900 shadow-sm'
-              : 'text-zinc-400 hover:text-zinc-200'
-          }`}
-        >
-          {t.videoTab} ({uniqueVideoFormats.length})
-        </button>
-
-        <button
-          onClick={() => setActiveTab('audio')}
-          className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
-            activeTab === 'audio'
-              ? 'bg-zinc-800 light:bg-white text-zinc-100 light:text-zinc-900 shadow-sm'
-              : 'text-zinc-400 hover:text-zinc-200'
-          }`}
-        >
-          {t.audioTab}
-        </button>
-
-        {video.subtitles.length > 0 && (
+      {/* Tab Navigation & Mac Toggle */}
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-1 p-1 bg-zinc-900/90 light:bg-zinc-100 rounded-lg border border-zinc-800/80 light:border-zinc-200">
           <button
-            onClick={() => setActiveTab('subtitles')}
-            className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
-              activeTab === 'subtitles'
+            onClick={() => setActiveTab('video')}
+            className={`py-1.5 px-3 rounded-md text-xs font-medium transition-all ${
+              activeTab === 'video'
                 ? 'bg-zinc-800 light:bg-white text-zinc-100 light:text-zinc-900 shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            {t.subtitlesTab} ({video.subtitles.length})
+            {t.videoTab} ({uniqueVideoFormats.length})
+          </button>
+
+          <button
+            onClick={() => setActiveTab('audio')}
+            className={`py-1.5 px-3 rounded-md text-xs font-medium transition-all ${
+              activeTab === 'audio'
+                ? 'bg-zinc-800 light:bg-white text-zinc-100 light:text-zinc-900 shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            {t.audioTab}
+          </button>
+
+          {video.subtitles.length > 0 && (
+            <button
+              onClick={() => setActiveTab('subtitles')}
+              className={`py-1.5 px-3 rounded-md text-xs font-medium transition-all ${
+                activeTab === 'subtitles'
+                  ? 'bg-zinc-800 light:bg-white text-zinc-100 light:text-zinc-900 shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              {t.subtitlesTab} ({video.subtitles.length})
+            </button>
+          )}
+        </div>
+
+        {/* Minimal Mac Toggle */}
+        {activeTab === 'video' && (
+          <button
+            type="button"
+            onClick={() => onUpdateSettings?.({ macCompatibilityMode: !settings.macCompatibilityMode })}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+              settings.macCompatibilityMode
+                ? 'bg-zinc-800/90 text-zinc-100 border-zinc-700 shadow-sm'
+                : 'text-zinc-500 hover:text-zinc-300 border-zinc-800/60 bg-transparent'
+            }`}
+            title={lang === 'tr' ? 'Mac QuickTime için H.264 MP4 modu' : 'Mac QuickTime H.264 MP4 mode'}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                settings.macCompatibilityMode
+                  ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]'
+                  : 'bg-zinc-600'
+              }`}
+            />
+            <span>Mac (MP4)</span>
           </button>
         )}
       </div>
 
       {/* --- VIDEO TAB --- */}
       {activeTab === 'video' && (
-        <div className="space-y-3">
-          {/* Mac / QuickTime Compatibility Mode Toggle */}
-          <div className="flex items-center justify-between p-2.5 rounded-lg bg-zinc-900/70 light:bg-zinc-100/70 border border-zinc-800/80 light:border-zinc-300">
-            <label className="flex items-center gap-2.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={Boolean(settings.macCompatibilityMode)}
-                onChange={(e) => onUpdateSettings?.({ macCompatibilityMode: e.target.checked })}
-                className="w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-indigo-500 focus:ring-indigo-500/20 cursor-pointer accent-indigo-500"
-              />
-              <div>
-                <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-200 light:text-zinc-800">
-                  <span>{t.macMode}</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-950/70 text-indigo-300 border border-indigo-800/40 font-mono">
-                    QuickTime
+        <div className="divide-y divide-zinc-800/60 light:divide-zinc-200">
+          {uniqueVideoFormats.map((format) => {
+            const willBeMp4 = settings.macCompatibilityMode || !format.ext?.includes('webm');
+
+            return (
+              <div
+                key={format.formatId + format.qualityLabel}
+                className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xs sm:text-sm font-semibold text-zinc-200 light:text-zinc-800">
+                    {format.qualityLabel}
                   </span>
+
+                  {format.fps && format.fps >= 50 && (
+                    <span className="text-[10px] font-mono text-zinc-400 px-1.5 py-0.5 rounded bg-zinc-800/60 border border-zinc-700/40">
+                      {format.fps}fps
+                    </span>
+                  )}
+
+                  <span className="text-[11px] font-mono text-zinc-500 uppercase">
+                    {willBeMp4 ? 'MP4' : 'WEBM'}
+                  </span>
+
+                  {format.filesizeFormatted && (
+                    <span className="text-[11px] font-mono text-zinc-500">
+                      • {format.filesizeFormatted}
+                    </span>
+                  )}
                 </div>
-                <p className="text-[11px] text-zinc-500 mt-0.5">
-                  {t.macModeDesc}
-                </p>
-              </div>
-            </label>
-          </div>
 
-          <div className="divide-y divide-zinc-800/60 light:divide-zinc-200">
-            {uniqueVideoFormats.map((format) => {
-              const resNum = parseInt(format.qualityLabel) || 0;
-              const isOver1080p = resNum > 1080;
-              const willBeMp4 = settings.macCompatibilityMode || !format.ext?.includes('webm');
-
-              return (
-                <div
-                  key={format.formatId + format.qualityLabel}
-                  className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3"
+                <button
+                  onClick={() => onDownloadVideo(format)}
+                  disabled={isDownloading}
+                  className="btn-solid px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-xs sm:text-sm font-semibold text-zinc-200 light:text-zinc-800">
-                      {format.qualityLabel}
-                    </span>
-
-                    {format.fps && format.fps >= 50 && (
-                      <span className="text-[10px] font-mono text-zinc-400 px-1.5 py-0.5 rounded bg-zinc-800/60 border border-zinc-700/40">
-                        {format.fps}fps
-                      </span>
-                    )}
-
-                    <span
-                      className={`text-[11px] font-mono uppercase px-1.5 py-0.5 rounded border ${
-                        willBeMp4
-                          ? 'bg-zinc-800/60 text-zinc-300 border-zinc-700/50'
-                          : 'bg-amber-950/40 text-amber-300 border-amber-800/40'
-                      }`}
-                    >
-                      {willBeMp4 ? 'MP4' : 'WEBM'}
-                    </span>
-
-                    {settings.macCompatibilityMode && isOver1080p && (
-                      <span className="text-[10px] text-indigo-300 font-mono hidden sm:inline">
-                        • {t.macBadge} (H.264)
-                      </span>
-                    )}
-
-                    {!settings.macCompatibilityMode && isOver1080p && (
-                      <span className="text-[10px] text-amber-400/90 font-mono hidden sm:inline">
-                        • {t.speedModeBadge} (VP9)
-                      </span>
-                    )}
-
-                    {format.filesizeFormatted && (
-                      <span className="text-[11px] font-mono text-zinc-500">
-                        • {format.filesizeFormatted}
-                      </span>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={() => onDownloadVideo(format)}
-                    disabled={isDownloading}
-                    className="btn-solid px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>{t.download}</span>
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+                  <Download className="w-3.5 h-3.5" />
+                  <span>{t.download}</span>
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
 

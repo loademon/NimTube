@@ -77,11 +77,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 onChange={(e) =>
                   setFormState({ ...formState, macCompatibilityMode: e.target.checked })
                 }
-                className="mt-0.5 accent-indigo-500 rounded"
+                className="mt-0.5 accent-zinc-200 rounded"
               />
               <div className="text-xs">
                 <span className="font-medium text-zinc-200 light:text-zinc-800 block">
-                  {t.macModeTitle}
+                  {lang === 'tr' ? 'Mac QuickTime için H.264 MP4 hazırla' : 'Prepare H.264 MP4 for Mac QuickTime'}
                 </span>
                 <p className="text-[11px] text-zinc-500 mt-0.5">
                   {t.macModeDesc}

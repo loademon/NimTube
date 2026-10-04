@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "NimTube Bridge",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "NimTube web uygulaması için doğrudan kullanıcı IP'si üzerinden CORS engelsiz medya köprüsü.",
   "permissions": [
     "declarativeNetRequest",
@@ -16,8 +16,8 @@
     "*://*.googlevideo.com/*",
     "https://nimtube.2615.us/*",
     "https://*.2615.us/*",
-    "http://localhost/*",
-    "http://127.0.0.1/*"
+    "https://nimtube.loademon.com.tr/*",
+    "https://*.loademon.com.tr/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -40,8 +40,8 @@
       "matches": [
         "https://nimtube.2615.us/*",
         "https://*.2615.us/*",
-        "http://localhost:*/*",
-        "http://127.0.0.1:*/*",
+        "https://nimtube.loademon.com.tr/*",
+        "https://*.loademon.com.tr/*",
         "*://*.youtube.com/*"
       ],
       "js": ["content.js"],

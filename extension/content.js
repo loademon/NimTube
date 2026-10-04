@@ -3,8 +3,7 @@
 // If running on a NimTube host, save the origin for context-menu redirects
 if (
   window.location.hostname.includes('2615.us') ||
-  window.location.hostname === 'localhost' ||
-  window.location.hostname === '127.0.0.1'
+  window.location.hostname.includes('loademon.com.tr')
 ) {
   try {
     chrome.storage?.local?.set({ nimtubeAppUrl: window.location.origin });
@@ -15,7 +14,7 @@ function getExtensionVersion() {
   try {
     return chrome.runtime.getManifest().version;
   } catch (e) {
-    return '1.0.7';
+    return '1.0.8';
   }
 }
 

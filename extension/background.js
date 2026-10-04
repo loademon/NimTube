@@ -33,8 +33,9 @@ function injectContentScriptIntoOpenTabs() {
       if (!tab.id || !tab.url) continue;
       if (
         tab.url.includes('nimtube.2615.us') ||
-        tab.url.includes('localhost:') ||
-        tab.url.includes('127.0.0.1:')
+        tab.url.includes('nimtube.loademon.com.tr') ||
+        tab.url.includes('2615.us') ||
+        tab.url.includes('loademon.com.tr')
       ) {
         chrome.scripting.executeScript({
           target: { tabId: tab.id },
@@ -82,7 +83,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     try {
       if (message.type === 'PING') {
-        const ver = chrome.runtime.getManifest ? chrome.runtime.getManifest().version : '1.0.7';
+        const ver = chrome.runtime.getManifest ? chrome.runtime.getManifest().version : '1.0.8';
         sendResponse({ success: true, version: ver });
         return;
       }

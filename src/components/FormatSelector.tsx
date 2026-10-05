@@ -25,9 +25,6 @@ export const FormatSelector: React.FC<FormatSelectorProps> = ({
   lang,
 }) => {
   const [activeTab, setActiveTab] = useState<'video' | 'audio' | 'subtitles'>('video');
-  const [selectedMp3Bitrate, setSelectedMp3Bitrate] = useState<'320k' | '256k' | '192k' | '128k'>(
-    settings.audioBitrate || '320k'
-  );
 
   const t = translations[lang].formats;
 
@@ -159,70 +156,47 @@ export const FormatSelector: React.FC<FormatSelectorProps> = ({
 
       {/* --- AUDIO TAB --- */}
       {activeTab === 'audio' && (
-        <div className="space-y-3">
-          {/* Bitrate Picker for MP3 */}
-          <div className="flex items-center justify-between p-2.5 rounded-lg bg-zinc-900/60 light:bg-zinc-50 border border-zinc-800/60 light:border-zinc-200">
-            <span className="text-xs text-zinc-400">{t.mp3Quality}</span>
-            <div className="flex items-center gap-1">
-              {(['320k', '256k', '192k', '128k'] as const).map((rate) => (
-                <button
-                  key={rate}
-                  type="button"
-                  onClick={() => setSelectedMp3Bitrate(rate)}
-                  className={`px-2 py-0.5 rounded text-[11px] font-mono font-medium transition-colors ${
-                    selectedMp3Bitrate === rate
-                      ? 'bg-zinc-200 text-zinc-900'
-                      : 'text-zinc-400 hover:text-zinc-200'
-                  }`}
-                >
-                  {rate}
-                </button>
-              ))}
+        <div className="divide-y divide-zinc-800/60 light:divide-zinc-200">
+          {/* M4A Row (Primary Lossless AAC) */}
+          <div className="py-2.5 first:pt-0 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs sm:text-sm font-medium text-zinc-200 light:text-zinc-800">
+                {t.m4aTitle}
+              </div>
+              <div className="text-[11px] text-zinc-500 font-mono">
+                {t.m4aDesc}
+              </div>
             </div>
+
+            <button
+              onClick={() => onDownloadAudio(bestAudioFormat, 'm4a')}
+              disabled={isDownloading}
+              className="btn-solid px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 disabled:opacity-40"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>{t.download}</span>
+            </button>
           </div>
 
-          <div className="divide-y divide-zinc-800/60 light:divide-zinc-200">
-            {/* MP3 Row */}
-            <div className="py-2.5 first:pt-0 flex items-center justify-between gap-3">
-              <div>
-                <div className="text-xs sm:text-sm font-medium text-zinc-200 light:text-zinc-800">
-                  {t.mp3Title}
-                </div>
-                <div className="text-[11px] text-zinc-500 font-mono">
-                  {selectedMp3Bitrate} • {t.mp3Desc}
-                </div>
+          {/* MP3 Row */}
+          <div className="py-2.5 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs sm:text-sm font-medium text-zinc-200 light:text-zinc-800">
+                {t.mp3Title}
               </div>
-
-              <button
-                onClick={() => onDownloadAudio(bestAudioFormat, 'mp3')}
-                disabled={isDownloading}
-                className="btn-solid px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 disabled:opacity-40"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>{t.download}</span>
-              </button>
+              <div className="text-[11px] text-zinc-500 font-mono">
+                {t.mp3Desc}
+              </div>
             </div>
 
-            {/* M4A Row */}
-            <div className="py-2.5 flex items-center justify-between gap-3">
-              <div>
-                <div className="text-xs sm:text-sm font-medium text-zinc-200 light:text-zinc-800">
-                  {t.m4aTitle}
-                </div>
-                <div className="text-[11px] text-zinc-500 font-mono">
-                  {t.m4aDesc}
-                </div>
-              </div>
-
-              <button
-                onClick={() => onDownloadAudio(bestAudioFormat, 'm4a')}
-                disabled={isDownloading}
-                className="btn-outline px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 disabled:opacity-40"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>{t.download}</span>
-              </button>
-            </div>
+            <button
+              onClick={() => onDownloadAudio(bestAudioFormat, 'mp3')}
+              disabled={isDownloading}
+              className="btn-outline px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 disabled:opacity-40"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>{t.download}</span>
+            </button>
           </div>
         </div>
       )}

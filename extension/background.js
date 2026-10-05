@@ -32,6 +32,8 @@ function injectContentScriptIntoOpenTabs() {
     for (const tab of tabs) {
       if (!tab.id || !tab.url) continue;
       if (
+        tab.url.includes('localhost') ||
+        tab.url.includes('127.0.0.1') ||
         tab.url.includes('nimtube.2615.us') ||
         tab.url.includes('nimtube.loademon.com.tr') ||
         tab.url.includes('2615.us') ||

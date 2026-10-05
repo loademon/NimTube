@@ -62,14 +62,14 @@ export const HowItWorks: React.FC<HowItWorksProps> = ({ lang, onBack }) => {
                 <span className="text-xs font-mono text-zinc-500 font-medium">02</span>
                 <h2 className="text-sm font-medium text-zinc-200">
                   {lang === 'tr'
-                    ? 'Mediabunny ve WebAssembly ile 1080p ve 4K Birleştirme'
-                    : 'Lossless 1080p & 4K Muxing via Mediabunny & WebAssembly'}
+                    ? '64-Bit Mediabunny ile 1080p ve 4K Kayıpsız Birleştirme'
+                    : 'Lossless 1080p & 4K Muxing via 64-Bit Mediabunny'}
                 </h2>
               </div>
               <p className="text-xs text-zinc-400 leading-relaxed pl-7">
                 {lang === 'tr'
-                  ? 'YouTube, 720p üzerindeki videoları görüntü ve ses olarak ayrı iki dosya halinde sunar. NimTube, modern 64-bit Mediabunny motoru (ve WebAssembly FFmpeg yedeği) sayesinde bu iki akışı yeniden kodlamadan milisaniyeler içinde kayıpsız olarak birleştirir.'
-                  : 'YouTube splits resolutions above 720p into separate video and audio streams. NimTube runs an in-browser 64-bit Mediabunny engine (with WebAssembly FFmpeg fallback) to losslessly mux both streams in milliseconds without re-encoding.'}
+                  ? 'YouTube, 720p üzerindeki videoları görüntü ve ses olarak ayrı iki dosya halinde sunar. NimTube, modern 64-bit Mediabunny motoru ve WebCodecs GPU hızlandırması sayesinde bu iki akışı yeniden kodlamadan milisaniyeler içinde kayıpsız olarak birleştirir.'
+                  : 'YouTube splits resolutions above 720p into separate video and audio streams. NimTube runs an in-browser 64-bit Mediabunny engine with WebCodecs GPU acceleration to losslessly mux both streams in milliseconds without re-encoding.'}
               </p>
             </div>
 
@@ -94,14 +94,14 @@ export const HowItWorks: React.FC<HowItWorksProps> = ({ lang, onBack }) => {
                 <span className="text-xs font-mono text-zinc-500 font-medium">04</span>
                 <h2 className="text-sm font-medium text-zinc-200">
                   {lang === 'tr'
-                    ? 'File System Access ile Doğrudan Diske Yazma'
-                    : 'Direct Disk Streaming via File System Access API'}
+                    ? 'Doğrudan Diske Kaydetme (Düşük Bellek Kullanımı)'
+                    : 'Direct Disk Saving (Minimal Memory Footprint)'}
                 </h2>
               </div>
               <p className="text-xs text-zinc-400 leading-relaxed pl-7">
                 {lang === 'tr'
-                  ? 'Büyük video dosyaları tarayıcının RAM belleğinde biriktirilmez; File System Access API kullanılarak indirilen parçalar anlık olarak diske yazılır ve bellek tüketimi 50 MB altında sabit kalır.'
-                  : 'Large video files are not held in browser memory. Using the File System Access API, chunks are written directly to disk as they arrive, keeping RAM usage below 50 MB.'}
+                  ? 'Büyük video dosyaları tarayıcının belleğinde gereksiz yer kaplamaz; indirilen veri anlık olarak diske aktarılır, böylece tarayıcınız kasmadan veya donmadan akıcı çalışır.'
+                  : 'Large video files do not clog browser memory; data is saved directly to disk as it arrives, keeping your browser fast and responsive.'}
               </p>
             </div>
           </div>
@@ -313,8 +313,8 @@ const totalBytes = parseInt(probe.headers.get('content-range').split('/')[1], 10
                 <span className="text-xs font-mono text-zinc-500 font-medium">04</span>
                 <h2 className="text-sm sm:text-base font-medium text-zinc-100 light:text-zinc-900">
                   {lang === 'tr'
-                    ? 'Tarayıcı İçi Kayıpsız Birleştirme: Mediabunny & WebAssembly FFmpeg'
-                    : 'Lossless In-Browser Remuxing: Mediabunny & WebAssembly FFmpeg'}
+                    ? 'Tarayıcı İçi Kayıpsız Birleştirme: 64-bit Mediabunny & WebCodecs'
+                    : 'Lossless In-Browser Remuxing: 64-bit Mediabunny & WebCodecs'}
                 </h2>
               </div>
 
@@ -332,27 +332,27 @@ const totalBytes = parseInt(probe.headers.get('content-range').split('/')[1], 10
 
                 <div className="my-3 rounded-lg bg-zinc-950 border border-zinc-800 light:border-zinc-300 overflow-hidden">
                   <pre className="p-3 text-[11px] font-mono text-zinc-300 overflow-x-auto leading-relaxed">
-                    <code>{`// 1. Mediabunny ile giriş akışlarını ayrıştırma (Demuxing)
-const videoInput = new Input({ source: new BufferSource(videoBuffer), formats: ALL_FORMATS });
-const audioInput = new Input({ source: new BufferSource(audioBuffer), formats: ALL_FORMATS });
+                    <code>{`// 1. Mediabunny ile doğrudan ağdan canlı akış ayrıştırma (Streaming CustomSource)
+const videoInput = new Input({ source: createStreamSource({ url: videoUrl, totalBytes: videoBytes }), formats: ALL_FORMATS });
+const audioInput = new Input({ source: createStreamSource({ url: audioUrl, totalBytes: audioBytes }), formats: ALL_FORMATS });
 
 // 2. Kod çözücü konfigürasyonlarını alma ve çıkış akışı oluşturma
-const output = new Output({ format: new Mp4OutputFormat(), target: new BufferTarget() });
+const output = new Output({ format: new Mp4OutputFormat(), target: new StreamTarget(writable) });
 output.addVideoTrack(new EncodedVideoPacketSource(videoTrack.codec));
 output.addAudioTrack(new EncodedAudioPacketSource(audioTrack.codec));
 await output.start();
 
-// 3. Ham paketleri yeniden kodlamadan doğrudan konteynere pompalama
-for await (const packet of videoSink.packets()) videoSource.add(packet);
-for await (const packet of audioSink.packets()) audioSource.add(packet);
-await output.finalize(); // 50 milisaniyede kayıpsız tamamlanır!`}</code>
+// 3. Ham paketleri yeniden kodlamadan canlı olarak diske mühürleme
+for await (const packet of videoSink.packets()) outVideoSource.add(packet);
+for await (const packet of audioSink.packets()) outAudioSource.add(packet);
+await output.finalize(); // Sıfır geçici dosya ile doğrudan diske kaydedilir!`}</code>
                   </pre>
                 </div>
 
                 <p>
                   {lang === 'tr'
-                    ? 'Yeniden kodlama yapılmadığı için işlem saniyenin onda birinde tamamlanır, CPU ve RAM tüketimi minimumda kalır ve orijinal görüntü/ses kalitesinde sıfır kayıp yaşanır. Standart dışı akışlarda ise WebAssembly FFmpeg motoru ikincil yedek (fallback) olarak devreye girer.'
-                    : 'Because no transcoding occurs, processing finishes in a fraction of a second with minimal CPU/RAM overhead and zero quality loss. For edge-case streams, an in-browser WebAssembly FFmpeg worker serves as an automatic fallback.'}
+                    ? 'Yeniden kodlama yapılmadığı için işlem saniyenin onda birinde tamamlanır, CPU ve RAM tüketimi minimumda kalır ve orijinal görüntü/ses kalitesinde sıfır kayıp yaşanır. Mac uyumluluk modunda ise WebCodecs GPU donanım hızlandırmasıyla H.264 MP4 çıktısı üretilir.'
+                    : 'Because no transcoding occurs, processing finishes in a fraction of a second with minimal CPU/RAM overhead and zero quality loss. Mac compatibility mode leverages WebCodecs GPU hardware acceleration for universal H.264 MP4 output.'}
                 </p>
               </div>
             </section>
@@ -371,33 +371,31 @@ await output.finalize(); // 50 milisaniyede kayıpsız tamamlanır!`}</code>
               <div className="space-y-3 pl-7 text-xs sm:text-sm text-zinc-400 light:text-zinc-600 leading-relaxed">
                 <p>
                   {lang === 'tr'
-                    ? '4K çözünürlükteki videolar 2 GB ile 6 GB arasında yer tutabilir. Tarayıcıların JavaScript heap belleği 2-4 GB civarında sınırlıdır. Tüm parçaları bellekte Blob veya ArrayBuffer olarak bekletmek sekmenin çökmesine (Out of Memory - OOM) yol açar.'
-                    : '4K videos range from 2 GB to 6 GB. Storing massive Blobs in JavaScript heap memory crashes browser tabs.'}
+                    ? '10 GB+ boyutundaki uzun canlı yayınlar ve 4K videolar indirilirken tarayıcının çökmesini (OOM) ve C: diskinin dolmasını önlemek için Canlı Birleştirerek İndirme (Streaming Remux) kullanılır.'
+                    : 'When downloading 10 GB+ livestreams and 4K videos, Streaming Remux prevents browser tab crashes (OOM) and avoids filling your primary system drive.'}
                 </p>
                 <p>
                   {lang === 'tr'
-                    ? 'File System Access API destekleyen tarayıcılarda indirilen her 8 MB parça anlık olarak diske yazılır ve RAM belleği hemen boşaltılır:'
-                    : 'Using the File System Access API, chunks are written to disk sequentially, freeing RAM instantly:'}
+                    ? 'File System Access API ile seçtiğiniz sürücüye (C:, D: vb.) doğrudan yazılabilir akış açılır; parçalar RAM veya geçici alanda bekletilmeden doğrudan diske basılır:'
+                    : 'Using the File System Access API, streams pipe directly into your chosen destination (C:, D:, etc.) with zero temporary buffer files:'}
                 </p>
 
                 <div className="my-3 rounded-lg bg-zinc-950 border border-zinc-800 light:border-zinc-300 overflow-hidden">
                   <pre className="p-3 text-[11px] font-mono text-zinc-300 overflow-x-auto leading-relaxed">
-                    <code>{`// 1. Kayıt konumu alma
+                    <code>{`// 1. Kullanıcıdan kayıt konumu alma (C: veya D: sürücüsü)
 const handle = await window.showSaveFilePicker({
   suggestedName: \`\${title}.mp4\`,
   types: [{ description: 'MP4 Video', accept: { 'video/mp4': ['.mp4'] } }]
 });
 
-// 2. Diske doğrudan yazılabilir akış açma
+// 2. Seçilen diske doğrudan yazılabilir akış açma (0 bayt geçici disk alanı)
 const writable = await handle.createWritable();
 
-// 3. Parçaları diske basıp RAM'i serbest bırakma
-for (const chunk of chunkQueue) {
-  await writable.write(chunk.data); // Doğrudan SSD/HDD'ye yazar
-  chunk.data = null;                // Bellek anında boşaltılır
-}
-
-await writable.close(); // RAM kullanımı 50 MB'ın altında kalır`}</code>
+// 3. Mediabunny StreamTarget ile veriyi anında diske mühürleme
+const target = new StreamTarget(writable);
+// Ağdan gelen her bayt anında hedef diske akar; RAM < 50 MB, C: diski 0 bayt!
+await output.finalize();
+await writable.close();`}</code>
                   </pre>
                 </div>
               </div>

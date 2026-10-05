@@ -9,9 +9,10 @@ import { SettingsModal } from './components/SettingsModal';
 import { HistoryModal } from './components/HistoryModal';
 import { HowItWorks } from './components/HowItWorks';
 import { ExtensionPage } from './components/ExtensionPage';
+import { ReleaseNotes } from './components/ReleaseNotes';
 import { ExtensionModal } from './components/ExtensionModal';
 import { engine } from './core/engine';
-import { Language } from './core/i18n';
+import { Language, translations } from './core/i18n';
 import { getHistory, addToHistory, HistoryItem } from './core/storage/history';
 import { isExtensionAvailable, subscribeExtensionStatus, getExtensionStatus, ExtensionStatus } from './core/extension/extensionBridge';
 import type { 
@@ -47,7 +48,7 @@ export const App: React.FC = () => {
     return (saved === 'en' || saved === 'tr') ? saved : 'tr';
   });
 
-  const [activeView, setActiveView] = useState<'home' | 'how-it-works' | 'extension'>('home');
+  const [activeView, setActiveView] = useState<'home' | 'how-it-works' | 'extension' | 'releases'>('home');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isExtensionModalOpen, setIsExtensionModalOpen] = useState(false);
   const [historyList, setHistoryList] = useState<HistoryItem[]>(getHistory);
@@ -103,7 +104,8 @@ export const App: React.FC = () => {
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
-  
+  const [searchError, setSearchError] = useState<string | null>(null);
+
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgressType>({
     stage: 'idle',
     percentage: 0,
@@ -134,15 +136,21 @@ export const App: React.FC = () => {
   // Handle URL search
   const handleSearch = async (url: string) => {
     setIsLoading(true);
-    setStatusMessage(lang === 'tr' ? 'Video akışları taranıyor...' : 'Resolving streams...');
+    setStatusMessage(lang === 'tr' ? 'Video bilgileri alınıyor...' : 'Fetching video info...');
     setVideoInfo(null);
+    setSearchError(null);
 
     try {
       const info = await engine.extractInfo(url, settings);
       setVideoInfo(info);
       setStatusMessage('');
     } catch (err: any) {
-      alert(`Hata: ${err?.message || 'Video bilgileri çözümlenemedi.'}`);
+      setSearchError(
+        err?.message ||
+          (lang === 'tr'
+            ? 'Video bilgileri alınamadı. Lütfen bağlantıyı kontrol edin.'
+            : 'Could not fetch video info. Please check the URL.')
+      );
       setStatusMessage('');
     } finally {
       setIsLoading(false);
@@ -159,6 +167,10 @@ export const App: React.FC = () => {
       document.title = lang === 'tr' 
         ? 'NimTube Bridge Eklentisi — Kurulum & Güvenlik' 
         : 'NimTube Bridge Extension — Setup & Security';
+    } else if (activeView === 'releases') {
+      document.title = lang === 'tr' 
+        ? 'Sürüm Notları — NimTube' 
+        : 'Release Notes — NimTube';
     } else if (videoInfo?.title) {
       document.title = `${videoInfo.title} — NimTube`;
     } else {
@@ -170,7 +182,7 @@ export const App: React.FC = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const viewParam = params.get('view');
-    if (viewParam === 'how-it-works' || viewParam === 'extension') {
+    if (viewParam === 'how-it-works' || viewParam === 'extension' || viewParam === 'releases') {
       setActiveView(viewParam);
     }
 
@@ -272,6 +284,17 @@ export const App: React.FC = () => {
     downloadProgress.stage !== 'completed' &&
     downloadProgress.stage !== 'error';
 
+  // Warn before closing/reloading the tab while a download is in progress.
+  useEffect(() => {
+    if (!isDownloading) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDownloading]);
+
   return (
     <div className="min-h-screen flex flex-col bg-[#09090b] text-zinc-100">
       {/* Header */}
@@ -297,12 +320,26 @@ export const App: React.FC = () => {
         {activeView === 'extension' ? (
           <ExtensionPage
             lang={lang}
-            onBack={() => setActiveView('home')}
+            onBack={() => {
+              setActiveView('home');
+              window.history.replaceState({}, '', '/');
+            }}
           />
         ) : activeView === 'how-it-works' ? (
           <HowItWorks
             lang={lang}
-            onBack={() => setActiveView('home')}
+            onBack={() => {
+              setActiveView('home');
+              window.history.replaceState({}, '', '/');
+            }}
+          />
+        ) : activeView === 'releases' ? (
+          <ReleaseNotes
+            lang={lang}
+            onBack={() => {
+              setActiveView('home');
+              window.history.replaceState({}, '', '/');
+            }}
           />
         ) : (
           <>
@@ -369,6 +406,8 @@ export const App: React.FC = () => {
               statusMessage={statusMessage}
               lang={lang}
               initialUrl={initialSearchUrl}
+              errorMessage={searchError}
+              onClearError={() => setSearchError(null)}
             />
 
             {/* Video & Format Details */}
@@ -444,6 +483,17 @@ export const App: React.FC = () => {
         >
           loademon
         </a>
+        <span>•</span>
+        <button
+          onClick={() => {
+            setActiveView('releases');
+            window.history.replaceState({}, '', '/?view=releases');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          className="text-zinc-300 light:text-zinc-700 hover:text-white light:hover:text-black underline transition-colors"
+        >
+          {translations[lang].nav.releases}
+        </button>
         <span>•</span>
         <a
           href="https://github.com/loademon/NimTube"

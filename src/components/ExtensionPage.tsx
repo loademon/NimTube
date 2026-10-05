@@ -15,10 +15,10 @@ export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) =>
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [vtData, setVtData] = useState({
-    permalink: 'https://www.virustotal.com/gui/file/db6fe8e1ee1828ba41b94f8b541253c1ea4f4a40dca1e82ac41504134b13733f/detection',
+    permalink: 'https://www.virustotal.com/gui/file/8e91bf87032f042dd36d081857f0ac3db3eee2d78430a80d644be9938b4f1711/detection',
     detections: 0,
     total: 62,
-    sha256: 'db6fe8e1ee1828ba41b94f8b541253c1ea4f4a40dca1e82ac41504134b13733f'
+    sha256: '8e91bf87032f042dd36d081857f0ac3db3eee2d78430a80d644be9938b4f1711'
   });
   const t = translations[lang].extensionPage;
 
@@ -31,7 +31,7 @@ export const ExtensionPage: React.FC<ExtensionPageProps> = ({ lang, onBack }) =>
             permalink: d.permalink,
             detections: d.detections ?? 0,
             total: d.total ?? 62,
-            sha256: d.sha256 ?? 'db6fe8e1ee1828ba41b94f8b541253c1ea4f4a40dca1e82ac41504134b13733f'
+            sha256: d.sha256 ?? '8e91bf87032f042dd36d081857f0ac3db3eee2d78430a80d644be9938b4f1711'
           });
         }
       })

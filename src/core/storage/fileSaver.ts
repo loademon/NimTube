@@ -13,6 +13,26 @@ export interface SaveFileOptions {
   useFileSystemAccess?: boolean;
 }
 
+/**
+ * Hands a Blob/File to the browser's download manager. Works for disk-backed
+ * Files (OPFS) of any size — the browser reads from disk, not from RAM.
+ */
+export function triggerBrowserDownload(blob: Blob, filename: string): void {
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = objectUrl;
+  a.download = sanitizeFilename(filename);
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+
+  // Keep the URL alive long enough for the download manager to pick it up.
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(objectUrl);
+  }, 60_000);
+}
+
 export async function saveFileToDisk({
   filename,
   mimeType,
@@ -21,6 +41,7 @@ export async function saveFileToDisk({
 }: SaveFileOptions): Promise<boolean> {
   const cleanName = sanitizeFilename(filename);
   const ext = cleanName.split('.').pop() || 'mp4';
+  const blob = data instanceof Blob ? data : new Blob([data as any], { type: mimeType });
 
   // 1. Try File System Access API if supported and enabled
   if (useFileSystemAccess && 'showSaveFilePicker' in window) {
@@ -38,8 +59,8 @@ export async function saveFileToDisk({
       });
 
       const writable = await handle.createWritable();
-      await writable.write(data);
-      await writable.close();
+      // Stream instead of loading the whole file into memory.
+      await blob.stream().pipeTo(writable);
       return true;
     } catch (err: any) {
       // If user aborted/cancelled the picker, don't fallback to automatic download
@@ -51,21 +72,6 @@ export async function saveFileToDisk({
   }
 
   // 2. Fallback: Standard Blob Download
-  const blob = data instanceof Blob ? data : new Blob([data as any], { type: mimeType });
-  const objectUrl = URL.createObjectURL(blob);
-  
-  const a = document.createElement('a');
-  a.href = objectUrl;
-  a.download = cleanName;
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  
-  // Clean up Object URL
-  setTimeout(() => {
-    document.body.removeChild(a);
-    URL.revokeObjectURL(objectUrl);
-  }, 1000);
-
+  triggerBrowserDownload(blob, cleanName);
   return true;
 }

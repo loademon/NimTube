@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NimTube — Pure Client-Side YouTube Studio & Downloader</title>
     <meta name="title" content="NimTube — Pure Client-Side YouTube Studio & Downloader" />
-    <meta name="description" content="NimTube is an open-source, client-side YouTube video downloader and audio converter. Download YouTube videos in 4K, 1440p, 1080p, 60fps and convert to MP3 at full speed using WebAssembly." />
-    <meta name="keywords" content="NimTube, NimTube YouTube Downloader, YouTube video indir, YouTube mp3 dönüştürücü, client-side youtube downloader, 4k youtube downloader, open source youtube downloader, webassembly youtube downloader, nimtube downloader, youtube video indirme programı" />
+    <meta name="description" content="NimTube is an open-source, client-side YouTube video downloader and audio converter. Download YouTube videos in 4K, 1440p, 1080p, 60fps and extract audio at full speed using 64-bit Mediabunny." />
+    <meta name="keywords" content="NimTube, NimTube YouTube Downloader, YouTube video indir, YouTube mp3 dönüştürücü, client-side youtube downloader, 4k youtube downloader, open source youtube downloader, mediabunny youtube downloader, nimtube downloader, youtube video indirme programı" />
     <meta name="author" content="NimTube" />
     <meta name="robots" content="index, follow" />
     <meta name="theme-color" content="#09090b" />
@@ -21,7 +21,7 @@
     <meta property="og:site_name" content="NimTube" />
     <meta property="og:url" content="https://nimtube.2615.us/" />
     <meta property="og:title" content="NimTube — Pure Client-Side YouTube Studio & Downloader" />
-    <meta property="og:description" content="Download YouTube videos and audio at full quality (4K, 1080p, MP3) directly in your browser with WebAssembly. Zero server bandwidth, 100% your IP." />
+    <meta property="og:description" content="Download YouTube videos and audio at full quality (4K, 1080p, M4A/MP3) directly in your browser with 64-bit Mediabunny. Zero server bandwidth, 100% your IP." />
     <meta property="og:image" content="https://nimtube.2615.us/guide/virustotal-report.png" />
     <meta property="og:locale" content="en_US" />
     <meta property="og:locale:alternate" content="tr_TR" />
@@ -29,7 +29,7 @@
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="NimTube — Pure Client-Side YouTube Studio & Downloader" />
-    <meta name="twitter:description" content="Download YouTube videos and audio at full quality (4K, 1080p, MP3) directly in your browser with WebAssembly. Zero server limits." />
+    <meta name="twitter:description" content="Download YouTube videos and audio at full quality (4K, 1080p, M4A/MP3) directly in your browser with 64-bit Mediabunny. Zero server limits." />
     <meta name="twitter:image" content="https://nimtube.2615.us/guide/virustotal-report.png" />
 
     <!-- Schema.org Structured Data -->
@@ -47,7 +47,7 @@
             "NimTube YouTube Downloader",
             "NimTube Studio"
           ],
-          "description": "Pure Client-Side YouTube Studio & Downloader using WebAssembly and parallel chunk streaming."
+          "description": "Pure Client-Side YouTube Studio & Downloader using 64-bit Mediabunny and parallel chunk streaming."
         },
         {
           "@type": "WebApplication",
@@ -56,7 +56,7 @@
           "url": "https://nimtube.2615.us/",
           "applicationCategory": "MultimediaApplication",
           "operatingSystem": "All modern web browsers (Chrome, Edge, Brave, Opera, Firefox)",
-          "browserRequirements": "Requires JavaScript and WebAssembly support",
+          "browserRequirements": "Requires modern JavaScript and MediaSource support",
           "offers": {
             "@type": "Offer",
             "price": "0",
@@ -73,7 +73,7 @@
               "name": "What is NimTube?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "NimTube is a client-side open-source YouTube downloader and audio converter that runs entirely in your browser using WebAssembly. It bypasses server throttling and downloads videos directly to your device."
+                "text": "NimTube is a client-side open-source YouTube downloader and audio converter that runs entirely in your browser using 64-bit Mediabunny and WebCodecs. It bypasses server throttling and downloads videos directly to your device."
               }
             },
             {
@@ -81,7 +81,7 @@
               "name": "How does NimTube download 4K and 1080p YouTube videos?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "YouTube serves 1080p and 4K video streams separately from audio streams. NimTube downloads both streams in parallel 8MB chunks using browser workers, and muxes them locally using WebAssembly FFmpeg without server re-encoding."
+                "text": "YouTube serves 1080p and 4K video streams separately from audio streams. NimTube downloads both streams in parallel 8MB chunks using browser workers, and muxes them locally using 64-bit Mediabunny without server re-encoding."
               }
             },
             {
@@ -124,7 +124,7 @@
             {
               "@type": "HowToStep",
               "name": "Download Directly",
-              "text": "Click Download to have WebAssembly FFmpeg merge and save the file directly to your disk without server limits.",
+              "text": "Click Download to have 64-bit Mediabunny merge and save the file directly to your disk without server limits.",
               "url": "https://nimtube.2615.us/#step3"
             }
           ]
@@ -145,16 +145,17 @@
         <h2 style="color: #e4e4e7; font-size: 1.1rem; margin-top: 1.5rem; margin-bottom: 0.5rem;">Core Features</h2>
         <ul>
           <li><strong>Pure Client-Side:</strong> Streams directly between YouTube CDN and your local browser using your own residential IP.</li>
-          <li><strong>4K &amp; 1080p WebAssembly Muxing:</strong> In-browser FFmpeg merges separate audio/video streams losslessly with zero quality loss (-c copy).</li>
-          <li><strong>Throttling Bypass:</strong> 4 concurrent 8 MB range chunk workers defeat YouTube bandwidth throttling.</li>
+          <li><strong>4K &amp; 1080p Lossless Muxing:</strong> In-browser 64-bit Mediabunny merges separate audio/video streams losslessly with zero quality loss (passthrough).</li>
+          <li><strong>Throttling Bypass:</strong> Adaptive parallel chunk streaming defeats YouTube bandwidth throttling.</li>
           <li><strong>Direct-to-Disk:</strong> Streams incoming chunks straight to local storage via File System Access API with low memory usage.</li>
-          <li><strong>MP3 Converter:</strong> Local extraction and high-bitrate conversion to MP3, AAC, or WAV.</li>
+          <li><strong>Audio Extractor:</strong> Local extraction and high-quality saving to M4A, MP3, or WebM.</li>
           <li><strong>Open Source &amp; Clean:</strong> 0/64 clean score verified on VirusTotal.</li>
         </ul>
         <h2 style="color: #e4e4e7; font-size: 1.1rem; margin-top: 1.5rem; margin-bottom: 0.5rem;">Documentation &amp; Links</h2>
         <ul>
           <li><a href="/?view=how-it-works" style="color: #60a5fa; text-decoration: underline;">How It Works &amp; Technical Architecture</a></li>
           <li><a href="/?view=extension" style="color: #60a5fa; text-decoration: underline;">NimTube Bridge Chrome Extension Guide</a></li>
+          <li><a href="/?view=releases" style="color: #60a5fa; text-decoration: underline;">Release Notes &amp; Version History</a></li>
           <li><a href="https://github.com/loademon/NimTube" style="color: #60a5fa; text-decoration: underline;">GitHub Repository (MIT License)</a></li>
         </ul>
       </div>

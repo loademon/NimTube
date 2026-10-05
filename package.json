@@ -1,7 +1,7 @@
 {
   "name": "nimtube",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.9",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,8 +11,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@ffmpeg/ffmpeg": "^0.12.15",
-    "@ffmpeg/util": "^0.12.2",
     "clsx": "^2.1.1",
     "lucide-react": "^1.16.0",
     "mediabunny": "^1.56.0",

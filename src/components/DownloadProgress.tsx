@@ -18,6 +18,16 @@ interface DownloadProgressProps {
   lang: Language;
 }
 
+function formatEta(seconds: number, lang: Language): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const [hu, mu, su] = lang === 'tr' ? ['sa', 'dk', 'sn'] : ['h', 'm', 's'];
+  if (h > 0) return `${h} ${hu} ${m} ${mu}`;
+  if (m > 0) return `${m} ${mu} ${s} ${su}`;
+  return `${s} ${su}`;
+}
+
 export const DownloadProgress: React.FC<DownloadProgressProps> = ({
   progress,
   onCancel,
@@ -141,7 +151,7 @@ export const DownloadProgress: React.FC<DownloadProgressProps> = ({
               <span>{progress.speedFormatted}</span>
             )}
             {progress.etaSeconds > 0 && (
-              <span className="ml-2">• {progress.etaSeconds}s {t.remaining}</span>
+              <span className="ml-2">• {formatEta(progress.etaSeconds, lang)} {t.remaining}</span>
             )}
           </div>
 

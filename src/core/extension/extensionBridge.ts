@@ -1,4 +1,4 @@
-export const LATEST_EXTENSION_VERSION = '1.0.8';
+export const LATEST_EXTENSION_VERSION = '1.0.9';
 
 export interface ExtensionStatus {
   available: boolean;

@@ -5,31 +5,123 @@ import type {
   DownloadProgress, 
   AppSettings 
 } from './types';
-import { downloadStreamWithProgress } from './network/streamDownloader';
-import { saveFileToDisk, sanitizeFilename } from './storage/fileSaver';
+import { downloadStreamWithProgress, formatSpeed, type DownloadProgressUpdate } from './network/streamDownloader';
+import { createStreamSource } from './network/streamSource';
+import { saveFileToDisk, sanitizeFilename, triggerBrowserDownload } from './storage/fileSaver';
+import {
+  type ByteSink,
+  createTempSink,
+  createUserFileSink,
+  pickSaveFile,
+  removeUserFile,
+  cleanupStaleTempFiles,
+  getAvailableStorage,
+  isDiskStorageSupported,
+} from './storage/byteSink';
 import { isExtensionAvailable, resolveVideoViaExtension } from './extension/extensionBridge';
 import { parseInnertubeOutput } from './extractor/innertubeParser';
 
+const GB = 1024 * 1024 * 1024;
+/** Above this size, in-memory fallback would crash the tab. */
+const MEMORY_FALLBACK_LIMIT = 1.5 * GB;
+/** Keep a delivered temp output around long enough for the browser to copy it. */
+const OUTPUT_TEMP_LIFETIME_MS = 30 * 60 * 1000;
+
+function formatGb(bytes: number): string {
+  return (bytes / GB).toFixed(1).replace('.', ',');
+}
+
+function idleProgress(statusMessage = ''): DownloadProgress {
+  return {
+    stage: 'idle',
+    percentage: 0,
+    downloadedBytes: 0,
+    totalBytes: 0,
+    speed: 0,
+    speedFormatted: '',
+    etaSeconds: 0,
+    statusMessage,
+  };
+}
+
+/** Rough size estimate (bytes) when YouTube does not report one (e.g. livestreams). */
+function estimateSize(format: VideoFormat | undefined, durationSeconds: number, fallbackKbps: number): number {
+  if (!format) return 0;
+  if (format.filesize && format.filesize > 0) return format.filesize;
+  const bps = format.bitrate && format.bitrate > 0 ? format.bitrate : fallbackKbps * 1000;
+  return durationSeconds > 0 ? Math.round((bps / 8) * durationSeconds) : 0;
+}
+
+/** Tracks every sink of one download so they can all be cleaned up on failure. */
+class DownloadSession {
+  private temps: ByteSink[] = [];
+  private outputs: ByteSink[] = [];
+  userHandle: FileSystemFileHandle | null = null;
+
+  async temp(label: string, mime?: string) {
+    const sink = await createTempSink(label, mime);
+    this.temps.push(sink);
+    return sink;
+  }
+
+  async output(mime: string) {
+    const sink = this.userHandle ? await createUserFileSink(this.userHandle) : await createTempSink('output', mime);
+    this.outputs.push(sink);
+    return sink;
+  }
+
+  get lastOutput(): ByteSink | undefined {
+    return this.outputs[this.outputs.length - 1];
+  }
+
+  async disposeTemps() {
+    await Promise.all(this.temps.map((s) => s.dispose().catch(() => {})));
+    this.temps = [];
+  }
+
+  /** Hands the finished file to the user. */
+  async deliver(file: Blob, filename: string) {
+    const out = this.lastOutput;
+    if (out?.isUserFile) return; // Already written straight into the user's chosen file.
+    triggerBrowserDownload(file, filename);
+    if (out?.diskBacked) {
+      setTimeout(() => out.dispose().catch(() => {}), OUTPUT_TEMP_LIFETIME_MS);
+    }
+  }
+
+  async fail() {
+    const all = [...this.temps, ...this.outputs];
+    await Promise.all(all.map(async (s) => {
+      await s.abort().catch(() => {});
+      await s.dispose().catch(() => {});
+    }));
+    this.temps = [];
+    this.outputs = [];
+    await removeUserFile(this.userHandle);
+  }
+}
+
 class NimTubeEngine {
-  private ytdlpWorker: Worker | null = null;
-  private ffmpegWorker: Worker | null = null;
+  private innertubeWorker: Worker | null = null;
   private abortController: AbortController | null = null;
   private messageCallbacks = new Map<string, { resolve: (val: any) => void; reject: (err: any) => void }>();
 
   constructor() {
     this.initWorkers();
+    // Remove leftovers from interrupted downloads in earlier sessions.
+    cleanupStaleTempFiles().catch(() => {});
   }
 
   public initWorkers() {
-    // 1. Initialize Pyodide yt-dlp Worker
-    if (!this.ytdlpWorker) {
+    // Initialize InnerTube Worker (Client-side YouTube API resolver fallback)
+    if (!this.innertubeWorker) {
       try {
-        this.ytdlpWorker = new Worker(
-          new URL('./extractor/ytdlpWorker.ts', import.meta.url),
+        this.innertubeWorker = new Worker(
+          new URL('./extractor/innertubeWorker.ts', import.meta.url),
           { type: 'module' }
         );
 
-        this.ytdlpWorker.onmessage = (e) => {
+        this.innertubeWorker.onmessage = (e) => {
           const { id, type, data, error } = e.data;
           if (id && this.messageCallbacks.has(id)) {
             const { resolve, reject } = this.messageCallbacks.get(id)!;
@@ -41,56 +133,10 @@ class NimTubeEngine {
             }
           }
         };
-
-        // Trigger background init
-        this.ytdlpWorker.postMessage({ action: 'init' });
       } catch (err) {
-        console.warn('yt-dlp worker init error:', err);
+        console.warn('InnerTube worker init error:', err);
       }
     }
-  }
-
-  // Lazy-load FFmpeg WebAssembly worker only when needed (saves 10MB WASM bandwidth on page load)
-  private ensureFFmpegWorker(): Worker {
-    if (!this.ffmpegWorker) {
-      try {
-        this.ffmpegWorker = new Worker(
-          new URL('./muxer/ffmpegWorker.ts', import.meta.url),
-          { type: 'module' }
-        );
-
-        this.ffmpegWorker.onmessage = (e) => {
-          const { id, type, buffer, error, message } = e.data;
-
-          if (type === 'ffmpeg_log') {
-            console.log(`%c[FFmpeg Log]%c ${message}`, 'color: #38bdf8; font-weight: bold;', 'color: inherit;');
-            return;
-          }
-          if (type === 'status') {
-            console.log(`%c[FFmpeg Status]%c ${message}`, 'color: #34d399; font-weight: bold;', 'color: inherit;');
-            return;
-          }
-          if (type === 'mux_progress') {
-            return;
-          }
-
-          if (id && this.messageCallbacks.has(id)) {
-            const { resolve, reject } = this.messageCallbacks.get(id)!;
-            this.messageCallbacks.delete(id);
-            if (type.endsWith('_error')) {
-              console.error('[FFmpeg Worker Failure]:', error);
-              reject(new Error(error || 'FFmpeg işlemi başarısız'));
-            } else {
-              resolve(buffer);
-            }
-          }
-        };
-      } catch (err) {
-        console.error('FFmpeg worker creation error:', err);
-        throw new Error('FFmpeg WebAssembly motoru başlatılamadı.');
-      }
-    }
-    return this.ffmpegWorker;
   }
 
   private sendWorkerMessage(worker: Worker, action: string, payload: any, transfer: Transferable[] = []): Promise<any> {
@@ -120,17 +166,74 @@ class NimTubeEngine {
     }
 
     // 2. Fallback to local / worker resolution
-    if (!this.ytdlpWorker) {
+    if (!this.innertubeWorker) {
       this.initWorkers();
     }
     
-    return await this.sendWorkerMessage(this.ytdlpWorker!, 'extract', {
+    return await this.sendWorkerMessage(this.innertubeWorker!, 'extract', {
       url,
       proxyUrl: settings.corsProxyUrl,
     });
   }
 
-  // Download Video (Progressive or Adaptive 1080p/4K with FFmpeg Muxing)
+  /**
+   * Makes sure the device can hold the temporary files. `tempBytes` is what goes
+   * into browser storage (OPFS); files saved via the picker don't count.
+   */
+  private async checkStorage(tempBytes: number) {
+    if (tempBytes <= 0) return;
+    const diskOk = await isDiskStorageSupported();
+    if (!diskOk) {
+      if (tempBytes > MEMORY_FALLBACK_LIMIT) {
+        throw new Error(
+          'Bu video tarayıcınızda indirilemeyecek kadar büyük. Lütfen güncel Chrome veya Edge ile tekrar deneyin.'
+        );
+      }
+      return;
+    }
+    // Leftovers from closed/crashed tabs count against the browser's quota.
+    await cleanupStaleTempFiles();
+    const available = await getAvailableStorage();
+    const needed = Math.round(tempBytes * 1.1);
+    if (Number.isFinite(available) && available < needed) {
+      console.warn(`[Engine] Tarayıcı depolama kotası yetersiz: ${available} bayt boş, ${needed} bayt gerekiyor.`);
+      throw new Error(
+        `Tarayıcınız bu siteye ${formatGb(available)} GB geçici alan ayırıyor, bu video için yaklaşık ${formatGb(needed)} GB gerekiyor. ` +
+          'Gizli sekmedeyseniz normal sekmede deneyin ya da diskte biraz daha yer açın.'
+      );
+    }
+  }
+
+  private scaleProgress(
+    onProgress: (p: DownloadProgress) => void,
+    stage: DownloadProgress['stage'],
+    from: number,
+    span: number,
+    label: string
+  ) {
+    return (prog: DownloadProgressUpdate) => {
+      onProgress({
+        stage,
+        percentage: from + Math.round(prog.percentage * span),
+        downloadedBytes: prog.downloadedBytes,
+        totalBytes: prog.totalBytes,
+        speed: prog.speed,
+        speedFormatted: prog.speedFormatted,
+        etaSeconds: prog.etaSeconds,
+        statusMessage: `${label}: %${prog.percentage} (${prog.speedFormatted})`,
+      });
+    };
+  }
+
+  private reportError(err: any, onProgress: (p: DownloadProgress) => void) {
+    onProgress({
+      ...idleProgress('İndirme tamamlanamadı'),
+      stage: 'error',
+      error: err?.message || 'Beklenmeyen bir sorun oluştu. Lütfen tekrar deneyin.',
+    });
+  }
+
+  // Download Video (Progressive or Adaptive 1080p/4K with Mediabunny Lossless Muxing)
   public async downloadVideo(
     videoInfo: VideoInfo,
     format: VideoFormat,
@@ -139,295 +242,281 @@ class NimTubeEngine {
   ): Promise<boolean> {
     this.abortController = new AbortController();
     const signal = this.abortController.signal;
+    const session = new DownloadSession();
+
+    const outExt: 'mp4' | 'webm' = settings.macCompatibilityMode
+      ? 'mp4'
+      : (format.ext === 'webm' ? 'webm' : 'mp4');
+    const outMime = outExt === 'webm' ? 'video/webm' : 'video/mp4';
+    const fpsTag = format.fps && format.fps >= 50 ? ` ${format.fps}fps` : '';
+    const baseName = sanitizeFilename(`${videoInfo.title} [${format.qualityLabel}${fpsTag}]`);
+
+    // 1. Ask where to save FIRST — the picker needs the click's user activation, and
+    //    writing straight into the chosen file avoids an extra multi-GB copy at the end.
+    try {
+      session.userHandle = await pickSaveFile(`${baseName}.${outExt}`, outMime, settings.useFileSystemAccess);
+    } catch {
+      onProgress(idleProgress());
+      return false;
+    }
 
     try {
+      const duration = videoInfo.duration || 0;
+      const videoBytes = estimateSize(format, duration, 5000);
+
       if (!format.isAdaptive) {
         // --- 1. SINGLE STREAM DIRECT DOWNLOAD (e.g. 720p / 360p) ---
+        await this.checkStorage(session.userHandle ? 0 : videoBytes);
+
         onProgress({
+          ...idleProgress(`${format.qualityLabel} video indiriliyor...`),
           stage: 'downloading_video',
-          percentage: 0,
-          downloadedBytes: 0,
           totalBytes: format.filesize || 0,
-          speed: 0,
           speedFormatted: '0 MB/s',
-          etaSeconds: 0,
-          statusMessage: `${format.qualityLabel} video akışı indiriliyor...`,
         });
 
-        const videoBlob = await downloadStreamWithProgress(
-          format.url,
-          settings.corsProxyUrl,
-          (prog) => {
-            onProgress({
-              stage: 'downloading_video',
-              percentage: prog.percentage,
-              downloadedBytes: prog.downloadedBytes,
-              totalBytes: prog.totalBytes,
-              speed: prog.speed,
-              speedFormatted: prog.speedFormatted,
-              etaSeconds: prog.etaSeconds,
-              statusMessage: `${format.qualityLabel} indiriliyor: %${prog.percentage} (${prog.speedFormatted})`,
-            });
-          },
+        const outputSink = await session.output(outMime);
+        const file = await downloadStreamWithProgress({
+          url: format.url,
+          proxyUrl: settings.corsProxyUrl,
+          sink: outputSink,
+          onProgress: this.scaleProgress(onProgress, 'downloading_video', 0, 0.98, `${format.qualityLabel} indiriliyor`),
           signal,
-          videoInfo.duration,
-          format.filesize
-        );
-
-        onProgress({
-          stage: 'saving',
-          percentage: 100,
-          downloadedBytes: videoBlob.size,
-          totalBytes: videoBlob.size,
-          speed: 0,
-          speedFormatted: '',
-          etaSeconds: 0,
-          statusMessage: 'Dosya diske kaydediliyor...',
+          expectedDurationSeconds: duration,
+          knownFilesize: format.filesize,
         });
 
-        const filename = `${sanitizeFilename(videoInfo.title)} [${format.qualityLabel}].${format.ext || 'mp4'}`;
-        await saveFileToDisk({
-          filename,
-          mimeType: format.ext === 'webm' ? 'video/webm' : 'video/mp4',
-          data: videoBlob,
-          useFileSystemAccess: settings.useFileSystemAccess,
-        });
-
+        onProgress({ ...idleProgress('Dosya kaydediliyor...'), stage: 'saving', percentage: 99 });
+        await session.deliver(file, `${baseName}.${format.ext || 'mp4'}`);
       } else {
         // --- 2. ADAPTIVE DASH STREAMS (1080p, 1440p, 4K -> Video + Audio Muxing) ---
-        
-        // Find matching best audio stream
-        let audioUrl = format.audioUrl;
-        const isTargetMp4 = (format.ext || 'mp4').toLowerCase() === 'mp4';
-
-        if (isTargetMp4) {
-          const aacAudio = videoInfo.audioFormats.find(
-            f => f.ext === 'm4a' || (f as any).audioCodec?.includes('mp4a') || (f as any).mimeType?.includes('mp4') || f.formatId === '140'
+        let audioFormat: VideoFormat | undefined;
+        if (outExt === 'mp4') {
+          audioFormat = videoInfo.audioFormats.find(
+            f => f.ext === 'm4a' || f.audioCodec?.includes('mp4a') || (f as any).mimeType?.includes('mp4') || f.formatId === '140'
           );
-          if (aacAudio?.url) {
-            audioUrl = aacAudio.url;
-          }
         } else {
-          const opusAudio = videoInfo.audioFormats.find(
-            f => f.ext === 'webm' || (f as any).audioCodec?.includes('opus') || (f as any).mimeType?.includes('webm') || f.formatId === '251'
+          audioFormat = videoInfo.audioFormats.find(
+            f => f.ext === 'webm' || f.audioCodec?.includes('opus') || (f as any).mimeType?.includes('webm') || f.formatId === '251'
           );
-          if (opusAudio?.url) {
-            audioUrl = opusAudio.url;
-          }
         }
-
+        if (!audioFormat?.url) {
+          audioFormat = videoInfo.audioFormats[0] || videoInfo.formats.find(f => f.hasAudio && !f.hasVideo);
+        }
+        const audioUrl = audioFormat?.url || format.audioUrl;
         if (!audioUrl) {
-          const fallbackAudio = videoInfo.audioFormats[0] || videoInfo.formats.find(f => f.hasAudio && !f.hasVideo);
-          audioUrl = fallbackAudio?.url;
+          throw new Error('Bu video için ses bulunamadı.');
         }
 
-        if (!audioUrl) {
-          throw new Error('Videoya ait uygun ses akışı bulunamadı.');
-        }
+        const audioBytes = estimateSize(audioFormat, duration, 160);
+        const totalExpectedBytes = videoBytes + audioBytes;
 
-        // Stage 1: Download Video Track (0 - 50% overall weight)
-        onProgress({
-          stage: 'downloading_video',
-          percentage: 0,
-          downloadedBytes: 0,
-          totalBytes: format.filesize || 0,
-          speed: 0,
-          speedFormatted: '0 MB/s',
-          etaSeconds: 0,
-          statusMessage: `${format.qualityLabel} video parçası indiriliyor...`,
-        });
+        const isLive =
+          format.url.includes('noclen=1') ||
+          format.url.includes('source=yt_live_broadcast') ||
+          format.url.includes('live=1');
 
-        const videoBlob = await downloadStreamWithProgress(
-          format.url,
-          settings.corsProxyUrl,
-          (prog) => {
-            const scaledPercent = Math.round(prog.percentage * 0.5);
+        if (!isLive) {
+          // --- ZERO-TEMP STREAMING REMUX (Streams video + audio on the fly directly into output) ---
+          // When session.userHandle exists (e.g. user selected D: drive), tempBytes on C: is 0!
+          // When session.userHandle is null, only the single final output file is stored in OPFS.
+          const tempBytes = session.userHandle ? 0 : totalExpectedBytes;
+          await this.checkStorage(tempBytes);
+
+          let downloadedBytes = 0;
+          let lastTime = Date.now();
+          let lastBytes = 0;
+          let currentSpeed = 0;
+
+          const reportMuxProgress = (force = false) => {
+            const now = Date.now();
+            const timeDiff = (now - lastTime) / 1000;
+            if (!force && timeDiff < 0.25) return;
+            const instant = (downloadedBytes - lastBytes) / (timeDiff || 1);
+            currentSpeed = currentSpeed > 0 ? currentSpeed * 0.7 + instant * 0.3 : instant;
+            lastTime = now;
+            lastBytes = downloadedBytes;
+
+            const pct = Math.min(99, Math.round((downloadedBytes / (totalExpectedBytes || 1)) * 100));
+            const remainingBytes = Math.max(0, totalExpectedBytes - downloadedBytes);
+            const etaSeconds = currentSpeed > 0 ? Math.round(remainingBytes / currentSpeed) : 0;
+
             onProgress({
               stage: 'downloading_video',
-              percentage: scaledPercent,
-              downloadedBytes: prog.downloadedBytes,
-              totalBytes: prog.totalBytes,
-              speed: prog.speed,
-              speedFormatted: prog.speedFormatted,
-              etaSeconds: prog.etaSeconds,
-              statusMessage: `Görüntü akışı indiriliyor: %${prog.percentage} (${prog.speedFormatted})`,
+              percentage: pct,
+              downloadedBytes,
+              totalBytes: totalExpectedBytes,
+              speed: currentSpeed,
+              speedFormatted: formatSpeed(currentSpeed),
+              etaSeconds,
+              statusMessage: `${format.qualityLabel} indiriliyor: %${pct} (${formatSpeed(currentSpeed)})`,
             });
-          },
-          signal,
-          videoInfo.duration,
-          format.filesize
-        );
+          };
 
-        // Stage 2: Download Audio Track (50% - 80% overall weight)
-        onProgress({
-          stage: 'downloading_audio',
-          percentage: 50,
-          downloadedBytes: 0,
-          totalBytes: 0,
-          speed: 0,
-          speedFormatted: '0 MB/s',
-          etaSeconds: 0,
-          statusMessage: `Yüksek kaliteli ses parçası indiriliyor...`,
-        });
+          onProgress({
+            ...idleProgress(`${format.qualityLabel} video ve ses hazırlanıyor...`),
+            stage: 'downloading_video',
+            totalBytes: totalExpectedBytes,
+            speedFormatted: '0 MB/s',
+          });
 
-        const audioBlob = await downloadStreamWithProgress(
-          audioUrl,
-          settings.corsProxyUrl,
-          (prog) => {
-            const scaledPercent = 50 + Math.round(prog.percentage * 0.3);
-            onProgress({
-              stage: 'downloading_audio',
-              percentage: scaledPercent,
-              downloadedBytes: prog.downloadedBytes,
-              totalBytes: prog.totalBytes,
-              speed: prog.speed,
-              speedFormatted: prog.speedFormatted,
-              etaSeconds: prog.etaSeconds,
-              statusMessage: `Ses akışı indiriliyor: %${prog.percentage} (${prog.speedFormatted})`,
-            });
-          },
-          signal,
-          videoInfo.duration
-        );
-
-        // Stage 3: Pure TypeScript 64-bit Lossless Muxing (80% - 95%)
-        const totalRawBytes = videoBlob.size + audioBlob.size;
-        onProgress({
-          stage: 'muxing',
-          percentage: 82,
-          downloadedBytes: totalRawBytes,
-          totalBytes: totalRawBytes,
-          speed: 0,
-          speedFormatted: '',
-          etaSeconds: 0,
-          statusMessage: 'Görüntü ve ses kayıpsız birleştiriliyor (Muxing)...',
-        });
-
-        let muxedBlob: Blob | null = null;
-        let finalExt: 'mp4' | 'webm' = settings.macCompatibilityMode ? 'mp4' : (format.ext === 'webm' ? 'webm' : 'mp4');
-        let finalMime: 'video/mp4' | 'video/webm' = finalExt === 'webm' ? 'video/webm' : 'video/mp4';
-
-        try {
-          const { losslessMux } = await import('./muxer/streamMuxer');
-          const muxResult = await losslessMux({
-            videoBlob,
-            audioBlob,
-            outputExt: settings.macCompatibilityMode ? 'mp4' : (format.ext === 'webm' ? 'webm' : 'mp4'),
-            macCompatibilityMode: settings.macCompatibilityMode,
-            onProgress: (pct, msg) => {
-              const scaled = 80 + Math.round(pct * 0.15);
-              onProgress({
-                stage: 'muxing',
-                percentage: scaled,
-                downloadedBytes: totalRawBytes,
-                totalBytes: totalRawBytes,
-                speed: 0,
-                speedFormatted: '',
-                etaSeconds: 0,
-                statusMessage: msg,
-              });
+          const videoSource = createStreamSource({
+            url: format.url,
+            totalBytes: videoBytes,
+            proxyUrl: settings.corsProxyUrl,
+            signal,
+            onBytes: (n) => {
+              downloadedBytes += n;
+              reportMuxProgress();
             },
           });
-          muxedBlob = muxResult.blob;
-          finalExt = muxResult.ext;
-          finalMime = muxResult.mimeType;
-        } catch (muxErr) {
-          console.warn('[NimTube Engine] StreamMuxer hatası, FFmpeg fallback deneniyor:', muxErr);
-          const totalRawMb = totalRawBytes / (1024 * 1024);
-          if (totalRawMb < 1200) {
-            const videoBuffer = await videoBlob.arrayBuffer();
-            const audioBuffer = await audioBlob.arrayBuffer();
-            const ffmpeg = this.ensureFFmpegWorker();
-            const muxedBuffer = await this.sendWorkerMessage(
-              ffmpeg,
-              'mux',
-              {
-                videoBuffer,
-                audioBuffer,
-                videoExt: format.ext,
-                audioExt: 'm4a',
-                outputExt: finalExt,
+
+          const audioSource = createStreamSource({
+            url: audioUrl,
+            totalBytes: audioBytes,
+            proxyUrl: settings.corsProxyUrl,
+            signal,
+            onBytes: (n) => {
+              downloadedBytes += n;
+              reportMuxProgress();
+            },
+          });
+
+          const { losslessMux } = await import('./muxer/streamMuxer');
+          let muxResult;
+          try {
+            muxResult = await losslessMux({
+              videoSource,
+              audioSource,
+              outputExt: outExt,
+              macCompatibilityMode: settings.macCompatibilityMode,
+              createOutputSink: () => session.output(outMime),
+              durationSeconds: duration,
+              signal,
+              onProgress: (_pct, msg) => {
+                if (settings.macCompatibilityMode && msg) {
+                  onProgress({
+                    ...idleProgress(msg),
+                    stage: 'muxing',
+                    percentage: Math.min(99, Math.round((downloadedBytes / (totalExpectedBytes || 1)) * 100)),
+                    downloadedBytes,
+                    totalBytes: totalExpectedBytes,
+                    speed: currentSpeed,
+                    speedFormatted: formatSpeed(currentSpeed),
+                    etaSeconds: currentSpeed > 0 ? Math.round((totalExpectedBytes - downloadedBytes) / currentSpeed) : 0,
+                  });
+                }
               },
-              [videoBuffer, audioBuffer]
-            );
-            if (muxedBuffer) {
-              muxedBlob = new Blob([muxedBuffer], { type: finalMime });
-            }
-          } else {
-            throw muxErr;
+            });
+          } catch (muxErr: any) {
+            if (muxErr?.name === 'AbortError') throw muxErr;
+            console.error('[NimTube Engine] StreamMuxer birleştirme hatası:', muxErr);
+            throw new Error('Video işlenirken bir sorun oluştu. Lütfen tekrar deneyin.');
           }
+
+          onProgress({ ...idleProgress('Dosya kaydediliyor...'), stage: 'saving', percentage: 99 });
+          await session.deliver(muxResult.blob, `${baseName}.${muxResult.ext}`);
+        } else {
+          // --- LIVE SEGMENTED STREAM FALLBACK ---
+          const tempBytes = videoBytes + audioBytes + (session.userHandle ? 0 : videoBytes + audioBytes);
+          await this.checkStorage(tempBytes);
+
+          // Stage 1: Download Video Track (0 - 50%)
+          onProgress({
+            ...idleProgress(`${format.qualityLabel} video indiriliyor...`),
+            stage: 'downloading_video',
+            totalBytes: format.filesize || 0,
+            speedFormatted: '0 MB/s',
+          });
+
+          const videoBlob = await downloadStreamWithProgress({
+            url: format.url,
+            proxyUrl: settings.corsProxyUrl,
+            sink: await session.temp('video'),
+            onProgress: this.scaleProgress(onProgress, 'downloading_video', 0, 0.5, 'Görüntü indiriliyor'),
+            signal,
+            expectedDurationSeconds: duration,
+            knownFilesize: format.filesize,
+          });
+
+          // Stage 2: Download Audio Track (50% - 70%)
+          onProgress({
+            ...idleProgress('Ses indiriliyor...'),
+            stage: 'downloading_audio',
+            percentage: 50,
+            speedFormatted: '0 MB/s',
+          });
+
+          const audioBlob = await downloadStreamWithProgress({
+            url: audioUrl,
+            proxyUrl: settings.corsProxyUrl,
+            sink: await session.temp('audio'),
+            onProgress: this.scaleProgress(onProgress, 'downloading_audio', 50, 0.2, 'Ses indiriliyor'),
+            signal,
+            expectedDurationSeconds: duration,
+            knownFilesize: audioFormat?.filesize,
+          });
+
+          // Stage 3: Lossless muxing streamed to disk (70% - 98%)
+          const totalRawBytes = videoBlob.size + audioBlob.size;
+          onProgress({
+            ...idleProgress('Görüntü ve ses birleştiriliyor...'),
+            stage: 'muxing',
+            percentage: 70,
+            downloadedBytes: totalRawBytes,
+            totalBytes: totalRawBytes,
+          });
+
+          const { losslessMux } = await import('./muxer/streamMuxer');
+          let muxResult;
+          try {
+            muxResult = await losslessMux({
+              videoBlob,
+              audioBlob,
+              outputExt: outExt,
+              macCompatibilityMode: settings.macCompatibilityMode,
+              createOutputSink: () => session.output(outMime),
+              durationSeconds: duration,
+              signal,
+              onProgress: (pct, msg) => {
+                onProgress({
+                  ...idleProgress(msg),
+                  stage: 'muxing',
+                  percentage: 70 + Math.round(pct * 0.28),
+                  downloadedBytes: totalRawBytes,
+                  totalBytes: totalRawBytes,
+                });
+              },
+            });
+          } catch (muxErr: any) {
+            if (muxErr?.name === 'AbortError') throw muxErr;
+            console.error('[NimTube Engine] StreamMuxer birleştirme hatası:', muxErr);
+            throw new Error('Video işlenirken bir sorun oluştu. Lütfen tekrar deneyin.');
+          }
+
+          // Source tracks are no longer needed — free the disk space right away.
+          await session.disposeTemps();
+
+          onProgress({ ...idleProgress('Dosya kaydediliyor...'), stage: 'saving', percentage: 99 });
+          await session.deliver(muxResult.blob, `${baseName}.${muxResult.ext}`);
         }
-
-        if (!muxedBlob) {
-          throw new Error('Birleştirme çıktısı oluşturulamadı.');
-        }
-
-        // Stage 4: Save to Disk
-        onProgress({
-          stage: 'saving',
-          percentage: 98,
-          downloadedBytes: muxedBlob.size,
-          totalBytes: muxedBlob.size,
-          speed: 0,
-          speedFormatted: '',
-          etaSeconds: 0,
-          statusMessage: 'Video diske kaydediliyor...',
-        });
-
-        const fpsTag = format.fps && format.fps >= 50 ? ` ${format.fps}fps` : '';
-        const filename = `${sanitizeFilename(videoInfo.title)} [${format.qualityLabel}${fpsTag}].${finalExt}`;
-        await saveFileToDisk({
-          filename,
-          mimeType: finalMime,
-          data: muxedBlob,
-          useFileSystemAccess: settings.useFileSystemAccess,
-        });
       }
 
-      onProgress({
-        stage: 'completed',
-        percentage: 100,
-        downloadedBytes: 0,
-        totalBytes: 0,
-        speed: 0,
-        speedFormatted: '',
-        etaSeconds: 0,
-        statusMessage: 'İndirme ve birleştirme başarıyla tamamlandı!',
-      });
-
+      onProgress({ ...idleProgress('İndirme tamamlandı!'), stage: 'completed', percentage: 100 });
       return true;
     } catch (err: any) {
       console.error('[NimTube Engine] downloadVideo hatası:', err);
-      if (err.name === 'AbortError') {
-        onProgress({
-          stage: 'idle',
-          percentage: 0,
-          downloadedBytes: 0,
-          totalBytes: 0,
-          speed: 0,
-          speedFormatted: '',
-          etaSeconds: 0,
-          statusMessage: 'İndirme kullanıcı tarafından iptal edildi.',
-        });
+      await session.fail();
+      if (err?.name === 'AbortError' || signal.aborted) {
+        onProgress(idleProgress('İndirme iptal edildi.'));
         return false;
       }
-
-      onProgress({
-        stage: 'error',
-        percentage: 0,
-        downloadedBytes: 0,
-        totalBytes: 0,
-        speed: 0,
-        speedFormatted: '',
-        etaSeconds: 0,
-        statusMessage: 'İndirme hatası',
-        error: err?.message || 'Bilinmeyen bir hata oluştu.',
-      });
+      this.reportError(err, onProgress);
       return false;
     }
   }
 
-  // Download Audio Only (MP3 320kbps / M4A)
+  // Download Audio Only (original M4A / WebM stream, no re-encoding)
   public async downloadAudio(
     videoInfo: VideoInfo,
     audioFormat: VideoFormat,
@@ -437,116 +526,55 @@ class NimTubeEngine {
   ): Promise<boolean> {
     this.abortController = new AbortController();
     const signal = this.abortController.signal;
+    const session = new DownloadSession();
+
+    const isWebm = audioFormat.ext === 'webm' || audioFormat.audioCodec?.includes('opus');
+    const finalExt = isWebm ? 'webm' : 'm4a';
+    const mimeType = isWebm ? 'audio/webm' : 'audio/mp4';
+    const label = targetType === 'mp3' ? 'AUDIO' : targetType.toUpperCase();
+    const filename = sanitizeFilename(`${videoInfo.title} [${label}].${finalExt}`);
 
     try {
+      session.userHandle = await pickSaveFile(filename, mimeType, settings.useFileSystemAccess);
+    } catch {
+      onProgress(idleProgress());
+      return false;
+    }
+
+    try {
+      const audioBytes = estimateSize(audioFormat, videoInfo.duration || 0, 160);
+      await this.checkStorage(session.userHandle ? 0 : audioBytes);
+
       onProgress({
+        ...idleProgress('Ses indiriliyor...'),
         stage: 'downloading_audio',
-        percentage: 0,
-        downloadedBytes: 0,
         totalBytes: audioFormat.filesize || 0,
-        speed: 0,
         speedFormatted: '0 MB/s',
-        etaSeconds: 0,
-        statusMessage: 'Yüksek kaliteli ses akışı indiriliyor...',
       });
 
-      const audioBlob = await downloadStreamWithProgress(
-        audioFormat.url,
-        settings.corsProxyUrl,
-        (prog) => {
-          const scaledPercent = Math.round(prog.percentage * 0.7);
-          onProgress({
-            stage: 'downloading_audio',
-            percentage: scaledPercent,
-            downloadedBytes: prog.downloadedBytes,
-            totalBytes: prog.totalBytes,
-            speed: prog.speed,
-            speedFormatted: prog.speedFormatted,
-            etaSeconds: prog.etaSeconds,
-            statusMessage: `Ses indiriliyor: %${prog.percentage} (${prog.speedFormatted})`,
-          });
-        },
-        signal
-      );
-
-      let finalData: Blob | ArrayBuffer = audioBlob;
-      let finalExt = targetType;
-      let mimeType = targetType === 'mp3' ? 'audio/mpeg' : 'audio/mp4';
-
-      if (targetType === 'mp3') {
-        onProgress({
-          stage: 'converting_audio',
-          percentage: 80,
-          downloadedBytes: audioBlob.size,
-          totalBytes: audioBlob.size,
-          speed: 0,
-          speedFormatted: '',
-          etaSeconds: 0,
-          statusMessage: `MP3 (${settings.audioBitrate}) formatına dönüştürülüyor...`,
-        });
-
-        const audioBuffer = await audioBlob.arrayBuffer();
-        const ffmpeg = this.ensureFFmpegWorker();
-
-        finalData = await this.sendWorkerMessage(
-          ffmpeg,
-          'convert_audio',
-          {
-            audioBuffer,
-            inputExt: audioFormat.ext,
-            targetFormat: 'mp3',
-            bitrate: settings.audioBitrate || '320k',
-          },
-          [audioBuffer]
-        );
-      }
-
-      const finalSize = finalData instanceof Blob ? finalData.size : finalData.byteLength;
-      onProgress({
-        stage: 'saving',
-        percentage: 98,
-        downloadedBytes: finalSize,
-        totalBytes: finalSize,
-        speed: 0,
-        speedFormatted: '',
-        etaSeconds: 0,
-        statusMessage: 'Ses dosyası diske kaydediliyor...',
+      const file = await downloadStreamWithProgress({
+        url: audioFormat.url,
+        proxyUrl: settings.corsProxyUrl,
+        sink: await session.output(mimeType),
+        onProgress: this.scaleProgress(onProgress, 'downloading_audio', 0, 0.98, 'Ses indiriliyor'),
+        signal,
+        expectedDurationSeconds: videoInfo.duration,
+        knownFilesize: audioFormat.filesize,
       });
 
-      const filename = `${sanitizeFilename(videoInfo.title)} [${targetType.toUpperCase()}].${finalExt}`;
-      await saveFileToDisk({
-        filename,
-        mimeType,
-        data: finalData,
-        useFileSystemAccess: settings.useFileSystemAccess,
-      });
+      onProgress({ ...idleProgress('Ses dosyası kaydediliyor...'), stage: 'saving', percentage: 99 });
+      await session.deliver(file, filename);
 
-      onProgress({
-        stage: 'completed',
-        percentage: 100,
-        downloadedBytes: 0,
-        totalBytes: 0,
-        speed: 0,
-        speedFormatted: '',
-        etaSeconds: 0,
-        statusMessage: 'Ses dosyası başarıyla indirildi!',
-      });
-
+      onProgress({ ...idleProgress('İndirme tamamlandı!'), stage: 'completed', percentage: 100 });
       return true;
     } catch (err: any) {
       console.error('[NimTube Engine] downloadAudio hatası:', err);
-      if (err.name === 'AbortError') return false;
-      onProgress({
-        stage: 'error',
-        percentage: 0,
-        downloadedBytes: 0,
-        totalBytes: 0,
-        speed: 0,
-        speedFormatted: '',
-        etaSeconds: 0,
-        statusMessage: 'Ses indirme hatası',
-        error: err?.message || 'Bilinmeyen bir hata oluştu.',
-      });
+      await session.fail();
+      if (err?.name === 'AbortError' || signal.aborted) {
+        onProgress(idleProgress('İndirme iptal edildi.'));
+        return false;
+      }
+      this.reportError(err, onProgress);
       return false;
     }
   }
@@ -579,7 +607,7 @@ class NimTubeEngine {
       });
       return true;
     } catch (err: any) {
-      alert(`Altyazı indirilemedi: ${err?.message || err}`);
+      console.error('[NimTube Engine] Altyazı indirilemedi:', err);
       return false;
     }
   }

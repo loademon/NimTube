@@ -1,17 +1,17 @@
 # NimTube
 
-> Pure Client-Side YouTube Studio & Downloader. Download YouTube videos and audio at full quality (4K, 1080p, MP3) directly in your browser with yt-dlp & WebAssembly. Zero server bandwidth, 100% your IP.
+> Pure Client-Side YouTube Studio & Downloader. Download YouTube videos and audio at full quality (4K, 1080p, M4A) directly in your browser with Mediabunny & WebCodecs. Zero server bandwidth, 100% your IP.
 
 ## Features
 
 - [Video Downloader](https://nimtube.2615.us/): Download videos up to 4K 60fps directly on the client-side.
-- [Audio Extractor](https://nimtube.2615.us/): Extract and convert audio to MP3, AAC, or WAV locally.
+- [Audio Extractor](https://nimtube.2615.us/): Extract and save audio to M4A (AAC) or WebM (Opus) locally.
 - [NimTube Bridge](https://nimtube.2615.us/?view=extension): Companion Chrome extension to download directly using your own IP address without server limits.
 
 ## Technology
 
 - [Technical Architecture](https://nimtube.2615.us/?view=how-it-works): In-depth breakdown of Innertube API, 4x parallel workers, and client-side streaming.
-- [WebAssembly Core](https://nimtube.2615.us/?view=how-it-works): High-performance client-side media multiplexing with FFmpeg WebAssembly (-c copy).
+- [Mediabunny Core](https://nimtube.2615.us/?view=how-it-works): High-performance client-side lossless media multiplexing with 64-bit Mediabunny & WebCodecs GPU.
 
 ## Links
 

@@ -1,9 +1,11 @@
-import { 
-  isExtensionAvailable, 
-  probeStreamViaExtension, 
+import {
+  isExtensionAvailable,
+  probeStreamViaExtension,
   fetchChunkViaExtension,
-  fetchSegmentBatchViaExtension 
+  fetchSegmentBatchViaExtension
 } from '../extension/extensionBridge';
+import type { ByteSink } from '../storage/byteSink';
+import { runAdaptivePool } from './adaptivePool';
 
 export interface DownloadProgressUpdate {
   downloadedBytes: number;
@@ -24,14 +26,138 @@ export function formatSpeed(bytesPerSec: number): string {
   return Math.round(bytesPerSec) + ' B/s';
 }
 
-const CHUNK_SIZE = 8 * 1024 * 1024; // 8MB per chunk
-const CONCURRENCY = 4; // 4 concurrent connections
-const SEGMENT_CONCURRENCY = 24; // 24 concurrent connections for DASH segments
+/**
+ * 8MB per chunk. YouTube throttles single requests larger than ~10MB to
+ * roughly real-time speed, so chunks must stay below that.
+ */
+const CHUNK_SIZE = 8 * 1024 * 1024;
+/**
+ * Range downloads: parallel request count is tuned at runtime by the adaptive
+ * pool. Browsers share one HTTP/2 / QUIC connection per host, so a small
+ * number of requests is often faster than many.
+ */
+const RANGE_POOL_MIN = 1;
+const RANGE_POOL_MAX = 6;
+const RANGE_POOL_INITIAL = 2;
+const SEGMENT_POOL_MIN = 4;
+const SEGMENT_POOL_MAX = 24;
+const DIRECT_SEGMENT_INITIAL = 12;
+const EXTENSION_SEGMENT_INITIAL = 12;
+const BATCH_SIZE = 10;
+const BATCH_WORKERS = 4;
+/**
+ * Max number of segments a worker may run ahead of the oldest unwritten one.
+ * Bounds RAM usage for segmented (live) downloads regardless of video length.
+ */
+const MAX_SEGMENTS_AHEAD = 64;
+const MAX_RETRIES = 3;
 
 export function buildSegmentUrl(baseUrl: string, sq: number): string {
   const u = new URL(baseUrl);
   u.searchParams.set('sq', String(sq));
   return u.toString();
+}
+
+function abortError(): Error {
+  const err = new Error('İndirme iptal edildi.');
+  err.name = 'AbortError';
+  return err;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function withRetry<T>(fn: () => Promise<T>, signal?: AbortSignal, retries = MAX_RETRIES): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    if (signal?.aborted) throw abortError();
+    try {
+      return await fn();
+    } catch (err: any) {
+      if (err?.name === 'AbortError' || signal?.aborted) throw abortError();
+      lastErr = err;
+      if (attempt < retries) await sleep(300 * (attempt + 1));
+    }
+  }
+  throw lastErr;
+}
+
+/**
+ * Writes segments to the sink strictly in order while allowing parallel fetches.
+ * Only a bounded window of out-of-order segments is held in memory.
+ */
+class OrderedSegmentWriter {
+  nextIndex: number;
+  position: number;
+  private pending = new Map<number, Uint8Array | null>();
+  private waiters: Array<() => void> = [];
+  private stopped = false;
+
+  constructor(private sink: ByteSink, startIndex = 0, startPosition = 0) {
+    this.nextIndex = startIndex;
+    this.position = startPosition;
+  }
+
+  /**
+   * Resolves `true` once `index` is within the allowed window ahead of the
+   * write cursor, or `false` if the current tier was stopped meanwhile.
+   */
+  async waitForSlot(index: number, signal?: AbortSignal): Promise<boolean> {
+    while (index >= this.nextIndex + MAX_SEGMENTS_AHEAD) {
+      if (signal?.aborted) throw abortError();
+      if (this.stopped) return false;
+      await new Promise<void>((resolve) => {
+        const onAbort = () => resolve();
+        signal?.addEventListener('abort', onAbort, { once: true });
+        this.waiters.push(() => {
+          signal?.removeEventListener('abort', onAbort);
+          resolve();
+        });
+      });
+    }
+    return !this.stopped;
+  }
+
+  /** Releases every waiting worker of the current tier (used after an error). */
+  stop() {
+    this.stopped = true;
+    this.wakeAll();
+  }
+
+  async put(index: number, data: Uint8Array | null): Promise<void> {
+    this.pending.set(index, data);
+    const writes: Promise<void>[] = [];
+    while (this.pending.has(this.nextIndex)) {
+      const chunk = this.pending.get(this.nextIndex)!;
+      this.pending.delete(this.nextIndex);
+      this.nextIndex++;
+      if (chunk && chunk.byteLength > 0) {
+        const pos = this.position;
+        this.position += chunk.byteLength;
+        writes.push(this.sink.write(pos, chunk));
+      }
+    }
+    if (writes.length) {
+      await Promise.all(writes);
+      const w = this.waiters;
+      this.waiters = [];
+      w.forEach((fn) => fn());
+    }
+  }
+
+  /** Drops out-of-order data (used when switching to a fallback tier). */
+  resetPending() {
+    this.pending.clear();
+    this.stopped = false;
+    const w = this.waiters;
+    this.waiters = [];
+    w.forEach((fn) => fn());
+  }
+
+  wakeAll() {
+    const w = this.waiters;
+    this.waiters = [];
+    w.forEach((fn) => fn());
+  }
 }
 
 interface StreamProbeInfo {
@@ -75,7 +201,7 @@ async function probeStreamInfo(
     });
 
     const headSeqHeader = probeRes.headers.get('x-head-seqnum') || probeRes.headers.get('x-sequence-num');
-    let headSeq = headSeqHeader ? parseInt(headSeqHeader, 10) : 0;
+    const headSeq = headSeqHeader ? parseInt(headSeqHeader, 10) : 0;
     const contentRange = probeRes.headers.get('content-range') || '';
     const contentLength = probeRes.headers.get('content-length') || '';
     const isRangeLive = isLive || contentRange.endsWith('/1');
@@ -111,33 +237,30 @@ async function probeStreamInfo(
   return { totalBytes: 0, isSegmented: isLive, headSeqNum: 0 };
 }
 
-// Download segmented DASH stream (sq=0, 1, 2, ..., N)
+// Download segmented DASH stream (sq=0, 1, 2, ..., N) straight into the sink
 async function downloadSegmentedStream(
   url: string,
   proxyUrl: string,
   headSeqNum: number,
   useExtension: boolean,
+  sink: ByteSink,
   onProgress: (update: DownloadProgressUpdate) => void,
   signal?: AbortSignal
 ): Promise<Blob> {
   const totalSegments = headSeqNum + 1;
   console.log(`%c[StreamDownloader]%c Canlı yayın sekans indirmesi başlatılıyor: ${totalSegments} parça (sq=0..${headSeqNum})`, 'color: #3b82f6; font-weight: bold;', 'color: inherit;');
 
-  const segmentBuffers: (Uint8Array | null)[] = new Array(totalSegments).fill(null);
-
-  let nextSq = 0;
+  const writer = new OrderedSegmentWriter(sink);
   let completedCount = 0;
   let totalDownloadedBytes = 0;
   let lastTime = Date.now();
   let lastBytes = 0;
   let currentSpeed = 0;
-  let activeError: Error | null = null;
 
-  // Progress reporting helper
-  const reportProgress = () => {
+  const reportProgress = (force = false) => {
     const now = Date.now();
     const timeDiff = (now - lastTime) / 1000;
-    if (timeDiff >= 0.25 || completedCount >= totalSegments) {
+    if (force || timeDiff >= 0.25) {
       const bytesDiff = totalDownloadedBytes - lastBytes;
       currentSpeed = bytesDiff / (timeDiff || 1);
       lastTime = now;
@@ -160,22 +283,92 @@ async function downloadSegmentedStream(
     }
   };
 
+  /**
+   * Runs segment workers starting at `startSq` in an adaptive pool whose size
+   * follows the measured throughput. Returns the first error, if any.
+   */
+  const runPool = async (
+    startSq: number,
+    initial: number,
+    fetchSegment: (sq: number) => Promise<ArrayBuffer | null>
+  ): Promise<Error | null> => {
+    let nextSq = startSq;
+    let failed = false;
+
+    try {
+      await runAdaptivePool({
+        min: SEGMENT_POOL_MIN,
+        max: SEGMENT_POOL_MAX,
+        initial,
+        signal,
+        label: 'segment',
+        next: () => {
+          if (failed || nextSq > headSeqNum) return null;
+          const sq = nextSq++;
+          return async (onBytes) => {
+            if (!(await writer.waitForSlot(sq, signal))) return;
+            try {
+              const buf = await withRetry(() => fetchSegment(sq), signal);
+              const data = buf && buf.byteLength > 0 ? new Uint8Array(buf) : null;
+              if (data) {
+                totalDownloadedBytes += data.byteLength;
+                onBytes(data.byteLength);
+              }
+              completedCount++;
+              await writer.put(sq, data);
+              reportProgress();
+            } catch (err: any) {
+              if (err?.name !== 'AbortError') {
+                failed = true;
+                writer.stop();
+              }
+              throw err;
+            }
+          };
+        },
+      });
+      return null;
+    } catch (err: any) {
+      if (err?.name === 'AbortError' || signal?.aborted) throw abortError();
+      return err instanceof Error ? err : new Error(String(err));
+    }
+  };
+
+  /** After a tier failure, continue from the last contiguous segment already on disk. */
+  const resumePoint = () => {
+    writer.resetPending();
+    completedCount = writer.nextIndex;
+    totalDownloadedBytes = writer.position;
+    lastBytes = totalDownloadedBytes;
+    return writer.nextIndex;
+  };
+
+  const finish = async (label: string) => {
+    const finalMb = (writer.position / (1024 * 1024)).toFixed(2);
+    console.log(`%c[StreamDownloader]%c ${label} tamamlandı: ${finalMb} MB (${completedCount}/${totalSegments} parça)`, 'color: #10b981; font-weight: bold;', 'color: inherit;');
+    reportProgress(true);
+    onProgress({
+      downloadedBytes: totalDownloadedBytes,
+      totalBytes: totalDownloadedBytes,
+      percentage: 100,
+      speed: currentSpeed,
+      speedFormatted: formatSpeed(currentSpeed),
+      etaSeconds: 0,
+    });
+    return await sink.finish();
+  };
+
   // --- TIER 1: Direct Native Fetch (CORS unblocked by Extension DeclarativeNetRequest) ---
   let canUseDirectFetch = false;
   try {
-    const testUrl = buildSegmentUrl(url, 0);
-    const testRes = await fetch(testUrl, { method: 'GET', signal: AbortSignal.timeout(3000) });
+    const testRes = await fetch(buildSegmentUrl(url, 0), { method: 'GET', signal: AbortSignal.timeout(3000) });
     if (testRes.ok || testRes.status === 204) {
       canUseDirectFetch = true;
-      if (testRes.ok) {
-        const buf0 = await testRes.arrayBuffer();
-        if (buf0 && buf0.byteLength > 0) {
-          segmentBuffers[0] = new Uint8Array(buf0);
-          totalDownloadedBytes += buf0.byteLength;
-          completedCount++;
-        }
-      }
-      nextSq = 1;
+      const buf0 = testRes.ok ? await testRes.arrayBuffer() : null;
+      const data0 = buf0 && buf0.byteLength > 0 ? new Uint8Array(buf0) : null;
+      if (data0) totalDownloadedBytes += data0.byteLength;
+      completedCount++;
+      await writer.put(0, data0);
       console.log('%c[StreamDownloader]%c Doğrudan tarayıcı indirmesi (Direct Native Fetch) devrede! En yüksek bant genişliği.', 'color: #10b981; font-weight: bold;', 'color: inherit;');
     }
   } catch {
@@ -183,244 +376,106 @@ async function downloadSegmentedStream(
   }
 
   if (canUseDirectFetch) {
-    const DIRECT_CONCURRENCY = 20;
-    const directWorker = async () => {
-      while (nextSq <= headSeqNum && !activeError) {
-        if (signal?.aborted) throw new Error('İndirme iptal edildi.');
-        const sq = nextSq++;
-        if (sq > headSeqNum) break;
+    const err = await runPool(1, DIRECT_SEGMENT_INITIAL, async (sq) => {
+      const res = await fetch(buildSegmentUrl(url, sq), { signal });
+      if (res.status === 204) return null;
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.arrayBuffer();
+    });
+    if (!err) return await finish('Doğrudan sekans indirmesi');
+    console.warn('[StreamDownloader] Doğrudan indirmede aksaklık yaşandı, eklenti katmanına geçiliyor:', err);
+  }
 
-        const segmentUrl = buildSegmentUrl(url, sq);
+  // --- TIER 2: Extension Turbo Batch Downloader ---
+  if (useExtension) {
+    const startSq = resumePoint();
+    let batchError: Error | null = null;
+    let nextBatchSq = startSq;
+
+    const batchWorker = async () => {
+      while (nextBatchSq <= headSeqNum && !batchError) {
+        if (signal?.aborted) throw abortError();
+        const firstSq = nextBatchSq;
+        const count = Math.min(BATCH_SIZE, headSeqNum - firstSq + 1);
+        nextBatchSq += count;
+        if (!(await writer.waitForSlot(firstSq + count - 1, signal)) || batchError) break;
         try {
-          const res = await fetch(segmentUrl, { signal });
-          if (!res.ok) {
-            if (res.status === 204) {
-              completedCount++;
-              reportProgress();
-              continue;
-            }
-            throw new Error(`HTTP ${res.status}`);
+          const buf = await withRetry(() => fetchSegmentBatchViaExtension(url, firstSq, count), signal);
+          if (!buf || buf.byteLength === 0) {
+            throw new Error(`Toplu parça indirme boş döndü (sq=${firstSq})`);
           }
-          const buf = await res.arrayBuffer();
-          if (buf && buf.byteLength > 0) {
-            segmentBuffers[sq] = new Uint8Array(buf);
-            totalDownloadedBytes += buf.byteLength;
-          }
-          completedCount++;
+          const data = new Uint8Array(buf);
+          totalDownloadedBytes += data.byteLength;
+          completedCount += count;
+          // Batch holds `count` segments: put the bytes at firstSq and mark the rest as consumed.
+          const puts: Promise<void>[] = [];
+          for (let k = count - 1; k >= 1; k--) puts.push(writer.put(firstSq + k, null));
+          puts.push(writer.put(firstSq, data));
+          await Promise.all(puts);
           reportProgress();
         } catch (err: any) {
-          activeError = err;
+          if (err?.name === 'AbortError') throw err;
+          batchError = err;
+          writer.stop();
           break;
         }
       }
     };
 
-    const workerPromises = Array.from(
-      { length: Math.min(DIRECT_CONCURRENCY, totalSegments - nextSq) },
-      () => directWorker()
-    );
-    await Promise.all(workerPromises);
-
-    if (!activeError) {
-      const parts: Uint8Array[] = [];
-      for (let i = 0; i <= headSeqNum; i++) {
-        const chunk = segmentBuffers[i];
-        if (chunk) {
-          parts.push(chunk);
-          segmentBuffers[i] = null;
-        }
-      }
-
-      const finalMb = (totalDownloadedBytes / (1024 * 1024)).toFixed(2);
-      console.log(`%c[StreamDownloader]%c Doğrudan sekans indirmesi başarıyla tamamlandı: ${finalMb} MB (${completedCount}/${totalSegments} parça)`, 'color: #10b981; font-weight: bold;', 'color: inherit;');
-
-      onProgress({
-        downloadedBytes: totalDownloadedBytes,
-        totalBytes: totalDownloadedBytes,
-        percentage: 100,
-        speed: currentSpeed,
-        speedFormatted: formatSpeed(currentSpeed),
-        etaSeconds: 0,
-      });
-
-      return new Blob(parts as any, { type: 'video/mp4' });
-    }
-
-    console.warn('[StreamDownloader] Doğrudan indirmede aksaklık yaşandı, eklenti katmanına geçiliyor:', activeError);
-    // Reset state completely before falling back to extension tier!
-    nextSq = 0;
-    completedCount = 0;
-    totalDownloadedBytes = 0;
-    segmentBuffers.fill(null);
-    activeError = null;
+    await Promise.all(Array.from({ length: BATCH_WORKERS }, batchWorker));
+    if (!batchError && writer.nextIndex > headSeqNum) return await finish('Turbo toplu indirme');
+    console.warn('[StreamDownloader] Toplu indirme yapılamadı, bireysel paralel moda geçiliyor:', batchError);
   }
 
-  // --- TIER 2: Extension Turbo Batch Downloader ---
-  let useBatch = useExtension;
-  if (useBatch) {
-    const BATCH_SIZE = 10;
-    const totalBatches = Math.ceil(totalSegments / BATCH_SIZE);
-    const batchBuffers: (Uint8Array | null)[] = new Array(totalBatches).fill(null);
-    let nextBatchIndex = 0;
-
-    try {
-      const BATCH_WORKERS = 4;
-      const batchWorker = async () => {
-        while (nextBatchIndex < totalBatches && !activeError) {
-          if (signal?.aborted) throw new Error('İndirme iptal edildi.');
-          const bIdx = nextBatchIndex++;
-          if (bIdx >= totalBatches) break;
-
-          const startSq = bIdx * BATCH_SIZE;
-          const count = Math.min(BATCH_SIZE, totalSegments - startSq);
-
-          const buf = await fetchSegmentBatchViaExtension(url, startSq, count);
-
-          if (!buf || buf.byteLength === 0) {
-            throw new Error(`Toplu parça indirme boş döndü (sq=${startSq})`);
-          }
-
-          batchBuffers[bIdx] = new Uint8Array(buf);
-          totalDownloadedBytes += buf.byteLength;
-          completedCount += count;
-          reportProgress();
-        }
-      };
-
-      const promises = Array.from({ length: Math.min(BATCH_WORKERS, totalBatches) }, () => batchWorker());
-      await Promise.all(promises);
-
-      if (totalDownloadedBytes === 0) {
-        throw new Error('Toplu indirme verisi boş döndü.');
+  // --- TIER 3: Individual Extension / Proxy Fetch (Fallback) ---
+  const startSq = resumePoint();
+  const err = await runPool(startSq, EXTENSION_SEGMENT_INITIAL, async (sq) => {
+    const segmentUrl = buildSegmentUrl(url, sq);
+    if (useExtension) {
+      try {
+        return await fetchChunkViaExtension(segmentUrl, '');
+      } catch (extErr) {
+        if (!proxyUrl) throw extErr;
       }
-
-      const parts: Uint8Array[] = [];
-      for (let i = 0; i < totalBatches; i++) {
-        const chunk = batchBuffers[i];
-        if (chunk) {
-          parts.push(chunk);
-          batchBuffers[i] = null;
-        }
-      }
-
-      const finalMb = (totalDownloadedBytes / (1024 * 1024)).toFixed(2);
-      console.log(`%c[StreamDownloader]%c Turbo Toplu İndirme tamamlandı: ${finalMb} MB (${completedCount}/${totalSegments} parça)`, 'color: #10b981; font-weight: bold;', 'color: inherit;');
-
-      onProgress({
-        downloadedBytes: totalDownloadedBytes,
-        totalBytes: totalDownloadedBytes,
-        percentage: 100,
-        speed: currentSpeed,
-        speedFormatted: formatSpeed(currentSpeed),
-        etaSeconds: 0,
-      });
-
-      return new Blob(parts as any, { type: 'video/mp4' });
-    } catch (batchErr) {
-      console.warn('[StreamDownloader] Toplu indirme yapılamadı, bireysel paralel moda geçiliyor:', batchErr);
-      useBatch = false;
-      nextSq = 0;
-      completedCount = 0;
-      totalDownloadedBytes = 0;
-      lastBytes = 0;
     }
-  }
-
-  // --- TIER 3: Individual Extension Fetch (Fallback) ---
-  const worker = async () => {
-    while (nextSq <= headSeqNum && !activeError) {
-      if (signal?.aborted) throw new Error('İndirme iptal edildi.');
-      const sq = nextSq++;
-      if (sq > headSeqNum) break;
-
-      const segmentUrl = buildSegmentUrl(url, sq);
-      const directOrProxySegmentUrl = proxyUrl ? `${proxyUrl}${encodeURIComponent(segmentUrl)}` : segmentUrl;
-
-      let arrayBuf: ArrayBuffer | null = null;
-      if (useExtension) {
-        let retries = 2;
-        while (retries >= 0 && !arrayBuf && !activeError) {
-          try {
-            arrayBuf = await fetchChunkViaExtension(segmentUrl, '');
-          } catch (extErr: any) {
-            retries--;
-            if (retries < 0) {
-              if (proxyUrl) {
-                try {
-                  const res = await fetch(directOrProxySegmentUrl, { signal });
-                  if (res.ok) arrayBuf = await res.arrayBuffer();
-                } catch {}
-              }
-              if (!arrayBuf) {
-                console.warn(`[StreamDownloader] Sekans parçası (sq=${sq}) indirilemedi:`, extErr);
-                activeError = new Error(`Sekans parçası indirilemedi (sq=${sq}): ${extErr?.message || 'Eklenti hatası'}`);
-              }
-            } else {
-              await new Promise((r) => setTimeout(r, 200));
-            }
-          }
-        }
-      }
-
-      if (!arrayBuf && !useExtension) {
-        const res = await fetch(directOrProxySegmentUrl, { signal });
-        if (!res.ok) {
-          if (res.status === 204) {
-            continue;
-          }
-          throw new Error(`Sekans parçası indirilemedi (sq=${sq}, HTTP ${res.status})`);
-        }
-        arrayBuf = await res.arrayBuffer();
-      }
-
-      if (arrayBuf && arrayBuf.byteLength > 0) {
-        segmentBuffers[sq] = new Uint8Array(arrayBuf);
-        totalDownloadedBytes += arrayBuf.byteLength;
-      }
-      completedCount++;
-      reportProgress();
-    }
-  };
-
-  const poolSize = Math.min(20, totalSegments);
-  const workerPromises = Array.from({ length: poolSize }, () => worker());
-  await Promise.all(workerPromises);
-
-  if (activeError) throw activeError;
-
-  // Assembling all segments in strict order into a single Fragmented MP4 Blob
-  const parts: Uint8Array[] = [];
-  for (let i = 0; i <= headSeqNum; i++) {
-    const chunk = segmentBuffers[i];
-    if (chunk) {
-      parts.push(chunk);
-      segmentBuffers[i] = null; // Free memory immediately
-    }
-  }
-
-  const finalMb = (totalDownloadedBytes / (1024 * 1024)).toFixed(2);
-  console.log(`%c[StreamDownloader]%c Sekans indirmesi tamamlandı: ${finalMb} MB (${completedCount}/${totalSegments} parça)`, 'color: #10b981; font-weight: bold;', 'color: inherit;');
-
-  onProgress({
-    downloadedBytes: totalDownloadedBytes,
-    totalBytes: totalDownloadedBytes,
-    percentage: 100,
-    speed: currentSpeed,
-    speedFormatted: formatSpeed(currentSpeed),
-    etaSeconds: 0,
+    const target = proxyUrl ? `${proxyUrl}${encodeURIComponent(segmentUrl)}` : segmentUrl;
+    const res = await fetch(target, { signal });
+    if (res.status === 204) return null;
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.arrayBuffer();
   });
 
-  return new Blob(parts as any, { type: 'video/mp4' });
+  if (err) {
+    console.error('[StreamDownloader] Sekans indirmesi başarısız:', err);
+    throw new Error('Video parçaları indirilemedi. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.');
+  }
+
+  return await finish('Sekans indirmesi');
 }
 
-export async function downloadStreamWithProgress(
-  url: string,
-  proxyUrl: string,
-  onProgress: (update: DownloadProgressUpdate) => void,
-  signal?: AbortSignal,
-  expectedDurationSeconds?: number,
-  knownFilesize?: number
-): Promise<Blob> {
+export interface DownloadStreamOptions {
+  url: string;
+  proxyUrl: string;
+  sink: ByteSink;
+  onProgress: (update: DownloadProgressUpdate) => void;
+  signal?: AbortSignal;
+  expectedDurationSeconds?: number;
+  knownFilesize?: number;
+}
+
+/**
+ * Downloads a stream directly into `sink` (disk-backed), returning a lazily
+ * readable Blob of the result. Memory usage stays bounded regardless of size.
+ */
+export async function downloadStreamWithProgress({
+  url,
+  proxyUrl,
+  sink,
+  onProgress,
+  signal,
+  expectedDurationSeconds,
+  knownFilesize,
+}: DownloadStreamOptions): Promise<Blob> {
   const useExtension = isExtensionAvailable();
   const directOrProxyUrl = proxyUrl ? `${proxyUrl}${encodeURIComponent(url)}` : url;
 
@@ -443,14 +498,7 @@ export async function downloadStreamWithProgress(
       headSeq = Math.ceil(expectedDurationSeconds);
     }
     if (headSeq > 0) {
-      return await downloadSegmentedStream(
-        url,
-        proxyUrl,
-        headSeq,
-        useExtension,
-        onProgress,
-        signal
-      );
+      return await downloadSegmentedStream(url, proxyUrl, headSeq, useExtension, sink, onProgress, signal);
     }
   }
 
@@ -460,145 +508,182 @@ export async function downloadStreamWithProgress(
   if (totalBytes === 0) {
     const probe = await probeStreamInfo(directOrProxyUrl, url, useExtension, signal);
     if (probe.isSegmented && probe.headSeqNum > 0) {
-      return await downloadSegmentedStream(
-        url,
-        proxyUrl,
-        probe.headSeqNum,
-        useExtension,
-        onProgress,
-        signal
-      );
+      return await downloadSegmentedStream(url, proxyUrl, probe.headSeqNum, useExtension, sink, onProgress, signal);
     }
     totalBytes = probe.totalBytes;
   }
 
-  // --- PATH B: PARALLEL MULTI-CHUNK TURBO DOWNLOADER ---
+  // --- PATH B: PARALLEL MULTI-CHUNK TURBO DOWNLOADER (positional writes, bounded memory) ---
   if (totalBytes > 0) {
     const sizeMb = (totalBytes / (1024 * 1024)).toFixed(2);
     console.log(`%c[StreamDownloader]%c Akış boyutu: ${sizeMb} MB (${totalBytes} bayt)`, 'color: #a855f7; font-weight: bold;', 'color: inherit;');
-    // Create chunks list
-    const chunks: { index: number; start: number; end: number }[] = [];
-    for (let offset = 0; offset < totalBytes; offset += CHUNK_SIZE) {
-      chunks.push({
-        index: chunks.length,
-        start: offset,
-        end: Math.min(totalBytes - 1, offset + CHUNK_SIZE - 1),
-      });
-    }
 
-    const chunkBuffers: (Uint8Array | null)[] = new Array(chunks.length).fill(null);
-    let totalDownloaded = 0;
-
+    const chunkCount = Math.ceil(totalBytes / CHUNK_SIZE);
     let nextChunkIndex = 0;
-    let activeError: Error | null = null;
+    let totalDownloaded = 0;
+    let failed = false;
     let lastTime = Date.now();
     let lastBytes = 0;
     let currentSpeed = 0;
 
+    const reportProgress = (force = false) => {
+      const now = Date.now();
+      const timeDiff = (now - lastTime) / 1000;
+      if (!force && timeDiff < 0.5) return;
+      const instant = (totalDownloaded - lastBytes) / (timeDiff || 1);
+      // Smooth the displayed speed so it doesn't jump around between chunks.
+      currentSpeed = currentSpeed > 0 ? currentSpeed * 0.7 + instant * 0.3 : instant;
+      lastTime = now;
+      lastBytes = totalDownloaded;
+
+      const percentage = Math.min(100, Math.round((totalDownloaded / totalBytes) * 100));
+      const remainingBytes = Math.max(0, totalBytes - totalDownloaded);
+      const etaSeconds = currentSpeed > 0 ? Math.round(remainingBytes / currentSpeed) : 0;
+
+      onProgress({
+        downloadedBytes: totalDownloaded,
+        totalBytes,
+        percentage,
+        speed: currentSpeed,
+        speedFormatted: formatSpeed(currentSpeed),
+        etaSeconds,
+      });
+    };
+
+    // Direct requests pass the byte range as a query parameter (googlevideo
+    // supports `&range=start-end`). Unlike a Range header this needs no CORS
+    // preflight, saving a round trip per chunk.
+    const rangeUrl = (start: number, end: number) => {
+      const u = new URL(url);
+      u.searchParams.set('range', `${start}-${end}`);
+      return u.toString();
+    };
+
     let canDirectFetch = false;
     try {
-      const probeRes = await fetch(url, { headers: { 'Range': 'bytes=0-0' }, signal: AbortSignal.timeout(3000) });
+      const probeRes = await fetch(rangeUrl(0, 1023), { signal: AbortSignal.timeout(3000) });
       if (probeRes.ok || probeRes.status === 206) {
+        await probeRes.arrayBuffer();
         canDirectFetch = true;
         console.log('%c[StreamDownloader]%c Doğrudan akış indirmesi (Direct Linear Fetch) devrede!', 'color: #10b981; font-weight: bold;', 'color: inherit;');
       }
     } catch {}
 
-    // Worker function
-    const worker = async () => {
-      while (nextChunkIndex < chunks.length && !activeError) {
-        if (signal?.aborted) throw new Error('İndirme iptal edildi.');
-        const chunk = chunks[nextChunkIndex++];
-        if (!chunk) break;
-
-        const range = `bytes=${chunk.start}-${chunk.end}`;
-        let arrayBuf: ArrayBuffer | null = null;
-
-        // Path A: Direct Native Fetch (Zero IPC, Zero Base64)
-        if (canDirectFetch) {
-          try {
-            const res = await fetch(url, { headers: { 'Range': range }, signal });
-            if (res.ok || res.status === 206) {
-              arrayBuf = await res.arrayBuffer();
-            }
-          } catch {
-            canDirectFetch = false;
-          }
-        }
-
-        // Path B: Direct via Extension
-        if (!arrayBuf && useExtension) {
-          try {
-            arrayBuf = await fetchChunkViaExtension(url, range);
-          } catch (extErr) {
-            console.warn(`[StreamDownloader] Eklenti parçası başarısız (${range}), yedek deneniyor:`, extErr);
-            arrayBuf = null;
-          }
-        }
-
-        // Path C: Direct / Custom Proxy fallback
-        if (!arrayBuf) {
-          if (!proxyUrl && useExtension) {
-            throw new Error(`Eklenti ile parça indirilemedi (${range})`);
-          }
-          const proxyTarget = proxyUrl ? `${proxyUrl}${encodeURIComponent(url)}` : url;
-          const res = await fetch(proxyTarget, {
-            headers: { 'Range': range },
-            signal,
-          });
-
-          if (!res.ok && res.status !== 206) {
-            throw new Error(`Parça indirilemedi (${range}, HTTP ${res.status})`);
-          }
-
-          arrayBuf = await res.arrayBuffer();
-        }
-
-        chunkBuffers[chunk.index] = new Uint8Array(arrayBuf);
-        totalDownloaded += arrayBuf.byteLength;
-
-        // Progress calculation
-        const now = Date.now();
-        const timeDiff = (now - lastTime) / 1000;
-        if (timeDiff >= 0.25 || totalDownloaded === totalBytes) {
-          const bytesDiff = totalDownloaded - lastBytes;
-          currentSpeed = bytesDiff / (timeDiff || 1);
-          lastTime = now;
-          lastBytes = totalDownloaded;
-
-          const percentage = Math.min(100, Math.round((totalDownloaded / totalBytes) * 100));
-          const remainingBytes = totalBytes - totalDownloaded;
-          const etaSeconds = currentSpeed > 0 ? Math.round(remainingBytes / currentSpeed) : 0;
-
-          onProgress({
-            downloadedBytes: totalDownloaded,
-            totalBytes,
-            percentage,
-            speed: currentSpeed,
-            speedFormatted: formatSpeed(currentSpeed),
-            etaSeconds,
-          });
-        }
+    /** Reads a response body into a buffer of exactly `length` bytes, reporting bytes as they arrive. */
+    const readBody = async (res: Response, length: number, onBytes: (n: number) => void): Promise<Uint8Array> => {
+      if (!res.body) {
+        const buf = new Uint8Array(await res.arrayBuffer());
+        onBytes(buf.byteLength);
+        return buf;
       }
+      const out = new Uint8Array(length);
+      const reader = res.body.getReader();
+      let offset = 0;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (offset + value.byteLength > length) throw new Error('Beklenenden uzun yanıt');
+          out.set(value, offset);
+          offset += value.byteLength;
+          onBytes(value.byteLength);
+        }
+      } finally {
+        reader.releaseLock();
+      }
+      if (offset !== length) throw new Error(`Eksik yanıt (${offset}/${length})`);
+      return out;
     };
 
-    const workerPromises: Promise<void>[] = [];
-    const poolSize = Math.min(CONCURRENCY, chunks.length);
-    for (let i = 0; i < poolSize; i++) {
-      workerPromises.push(worker());
-    }
+    const fetchRange = async (start: number, end: number, onBytes: (n: number) => void): Promise<Uint8Array> => {
+      const range = `bytes=${start}-${end}`;
+      const length = end - start + 1;
 
-    await Promise.all(workerPromises);
-
-    const parts: Uint8Array[] = [];
-    for (let i = 0; i < chunkBuffers.length; i++) {
-      const c = chunkBuffers[i];
-      if (c) {
-        parts.push(c);
-        chunkBuffers[i] = null;
+      // Path A: Direct Native Fetch (Zero IPC, Zero Base64)
+      if (canDirectFetch) {
+        let partial = 0;
+        try {
+          const res = await fetch(rangeUrl(start, end), { signal });
+          if (res.ok || res.status === 206) {
+            return await readBody(res, length, (n) => {
+              partial += n;
+              onBytes(n);
+            });
+          }
+        } catch (err: any) {
+          if (err?.name === 'AbortError' || signal?.aborted) throw err;
+          if (partial) onBytes(-partial);
+        }
       }
+
+      // Path B: Via Extension
+      if (useExtension) {
+        try {
+          const buf = new Uint8Array(await fetchChunkViaExtension(url, range));
+          onBytes(buf.byteLength);
+          return buf;
+        } catch (extErr) {
+          console.warn(`[StreamDownloader] Eklenti parçası başarısız (${range}), yedek deneniyor:`, extErr);
+        }
+      }
+
+      // Path C: Direct / Custom Proxy fallback
+      if (!proxyUrl && useExtension) {
+        throw new Error('Video parçası indirilemedi.');
+      }
+      const proxyTarget = proxyUrl ? `${proxyUrl}${encodeURIComponent(url)}` : url;
+      const res = await fetch(proxyTarget, { headers: { 'Range': range }, signal });
+      if (!res.ok && res.status !== 206) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      return await readBody(res, length, onBytes);
+    };
+
+    try {
+      await runAdaptivePool({
+        min: RANGE_POOL_MIN,
+        max: RANGE_POOL_MAX,
+        initial: RANGE_POOL_INITIAL,
+        signal,
+        label: 'range',
+        next: () => {
+          if (failed || nextChunkIndex >= chunkCount) return null;
+          const index = nextChunkIndex++;
+          const start = index * CHUNK_SIZE;
+          const end = Math.min(totalBytes - 1, start + CHUNK_SIZE - 1);
+
+          return async (onBytes) => {
+            try {
+              const data = await withRetry(async () => {
+                // Count bytes live for the progress bar; roll back if this attempt fails.
+                let received = 0;
+                try {
+                  return await fetchRange(start, end, (n) => {
+                    received += n;
+                    totalDownloaded += n;
+                    onBytes(n);
+                    reportProgress();
+                  });
+                } catch (err) {
+                  totalDownloaded -= received;
+                  throw err;
+                }
+              }, signal);
+              await sink.write(start, data);
+            } catch (err: any) {
+              if (err?.name !== 'AbortError') failed = true;
+              throw err;
+            }
+          };
+        },
+      });
+    } catch (err: any) {
+      if (err?.name === 'AbortError' || signal?.aborted) throw abortError();
+      console.error('[StreamDownloader] Parça indirme hatası:', err);
+      throw new Error('İndirme bağlantısı kesildi. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.');
     }
 
+    reportProgress(true);
     onProgress({
       downloadedBytes: totalBytes,
       totalBytes,
@@ -608,34 +693,30 @@ export async function downloadStreamWithProgress(
       etaSeconds: 0,
     });
 
-    return new Blob(parts as any, { type: 'video/mp4' });
+    return await sink.finish();
   }
 
-  // --- PATH C: FALLBACK SEQUENTIAL (Extension safe) ---
+  // --- PATH C: FALLBACK SEQUENTIAL (size unknown) ---
   console.warn('[StreamDownloader] Akış boyutu tespit edilemedi (0 bayt), sıralı indirmeye geçiliyor...');
   if (useExtension) {
-    console.log('[StreamDownloader] Eklenti üzerinden doğrudan akış çekiliyor...');
     const buf = await fetchChunkViaExtension(url, '');
-    return new Blob([buf], { type: 'video/mp4' });
+    await sink.write(0, new Uint8Array(buf));
+    return await sink.finish();
   }
 
   const res = await fetch(directOrProxyUrl, { signal });
-  if (!res.ok || !res.body) throw new Error('Medya akışı başlatılamadı.');
+  if (!res.ok || !res.body) throw new Error('Video akışı başlatılamadı. Lütfen tekrar deneyin.');
 
   const reader = res.body.getReader();
-  const rawChunks: Uint8Array[] = [];
-  let downloaded = 0;
-
+  let position = 0;
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    if (value) {
-      rawChunks.push(value);
-      downloaded += value.length;
+    if (value && value.byteLength) {
+      await sink.write(position, value);
+      position += value.byteLength;
     }
   }
 
-  const completeBlob = new Blob(rawChunks as any, { type: 'video/mp4' });
-  rawChunks.length = 0;
-  return completeBlob;
+  return await sink.finish();
 }

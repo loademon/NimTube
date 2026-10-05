@@ -9,9 +9,9 @@ interface HeaderProps {
   onUpdateSettings: (newSettings: Partial<AppSettings>) => void;
   onOpenSettings: () => void;
   onToggleHistory: () => void;
-  onNavigate: (view: 'home' | 'how-it-works' | 'extension') => void;
+  onNavigate: (view: 'home' | 'how-it-works' | 'extension' | 'releases') => void;
   onSwitchLanguage: (l: Language) => void;
-  activeView: 'home' | 'how-it-works' | 'extension';
+  activeView: 'home' | 'how-it-works' | 'extension' | 'releases';
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -72,6 +72,21 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               {t.extension}
+            </a>
+
+            <a
+              href="/?view=releases"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate(activeView === 'releases' ? 'home' : 'releases');
+              }}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                activeView === 'releases'
+                  ? 'bg-zinc-800 light:bg-zinc-200 text-zinc-100 light:text-zinc-900'
+                  : 'text-zinc-400 hover:text-zinc-200 light:hover:text-zinc-800'
+              }`}
+            >
+              {t.releases}
             </a>
           </nav>
         </div>

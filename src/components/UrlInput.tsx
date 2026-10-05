@@ -8,6 +8,8 @@ interface UrlInputProps {
   statusMessage?: string;
   lang: Language;
   initialUrl?: string;
+  errorMessage?: string | null;
+  onClearError?: () => void;
 }
 
 export const UrlInput: React.FC<UrlInputProps> = ({
@@ -16,6 +18,8 @@ export const UrlInput: React.FC<UrlInputProps> = ({
   statusMessage,
   lang,
   initialUrl,
+  errorMessage,
+  onClearError,
 }) => {
   const [url, setUrl] = useState(initialUrl || '');
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +27,8 @@ export const UrlInput: React.FC<UrlInputProps> = ({
   React.useEffect(() => {
     if (initialUrl) setUrl(initialUrl);
   }, [initialUrl]);
+
+  const displayError = error || errorMessage;
 
   const t = translations[lang].hero;
 
@@ -93,6 +99,7 @@ export const UrlInput: React.FC<UrlInputProps> = ({
             onChange={(e) => {
               setUrl(e.target.value);
               if (error) setError(null);
+              if (errorMessage && onClearError) onClearError();
             }}
             placeholder={t.placeholder}
             disabled={isLoading}
@@ -104,7 +111,10 @@ export const UrlInput: React.FC<UrlInputProps> = ({
             {url && !isLoading && (
               <button
                 type="button"
-                onClick={handleClear}
+                onClick={() => {
+                  handleClear();
+                  if (errorMessage && onClearError) onClearError();
+                }}
                 className="p-1 rounded-md text-zinc-500 hover:text-zinc-300 transition-colors"
                 title={t.clear}
               >
@@ -152,10 +162,10 @@ export const UrlInput: React.FC<UrlInputProps> = ({
         )}
 
         {/* Error */}
-        {error && (
+        {displayError && (
           <div className="mt-2.5 flex items-center gap-2 text-xs text-red-400 bg-red-950/30 border border-red-900/40 px-3 py-2 rounded-lg">
             <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-            <span>{error}</span>
+            <span>{displayError}</span>
           </div>
         )}
       </form>

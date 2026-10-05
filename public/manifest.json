@@ -1,7 +1,7 @@
 {
   "name": "NimTube — Pure Client-Side YouTube Studio & Downloader",
   "short_name": "NimTube",
-  "description": "Download YouTube videos and audio at full quality (4K, 1080p, MP3) directly in your browser with yt-dlp & WebAssembly.",
+  "description": "Download YouTube videos and audio at full quality (4K, 1080p, M4A) directly in your browser with Mediabunny & WebCodecs.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#09090b",

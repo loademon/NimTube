@@ -111,7 +111,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
               onClick={onClose}
               className="btn-solid px-3 py-1 rounded text-xs font-medium"
             >
-              Kapat
+              {lang === 'tr' ? 'Kapat' : 'Close'}
             </button>
           </div>
         )}

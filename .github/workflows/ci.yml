@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   build-and-verify:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
 
     steps:
@@ -38,13 +39,13 @@ jobs:
         run: node scripts/check-virustotal.js
 
       - name: Commit & Push Updated VirusTotal Report
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip ci]')
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add public/virustotal-widget.json README.md
           if ! git diff --staged --quiet; then
-            git commit -m "chore(ci): auto-update VirusTotal report link and hash [skip ci]"
+            git commit -m "chore(ci): auto-update VirusTotal report link and hash"
             git push
           else
             echo "No changes in VirusTotal report to commit."

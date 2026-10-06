@@ -1,8 +1,17 @@
+<p align="center">
+  <a href="https://nimtube.tr/">
+    <img src=".github/assets/social-preview.png" alt="NimTube — Pure Client-Side YouTube Studio & Downloader" width="100%" />
+  </a>
+</p>
+
 # NimTube — Pure Client-Side YouTube Studio & Downloader
 
 [![Live Web App](https://img.shields.io/badge/Live%20App-nimtube.tr-E62117?style=flat&logo=youtube&logoColor=white)](https://nimtube.tr/)
+[![Version](https://img.shields.io/badge/version-v1.1.0-blue?style=flat)](https://nimtube.tr/?view=releases)
 [![VirusTotal Clean](https://img.shields.io/badge/VirusTotal-0%2F62%20Clean-emerald?style=flat&logo=virustotal)](https://www.virustotal.com/gui/file/9a06f5a6189d2829cdf25206570618fceef6ef022219f6d0f920594b1b644342/detection)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react&logoColor=black)](https://react.dev/)
 
 > 🌐 **Canlı Web Sitesi (Live Site):** [https://nimtube.tr/](https://nimtube.tr/)  
 > **NimTube**, YouTube videolarını ve ses akışlarını harici bir sunucuya ihtiyaç duymadan, doğrudan kendi tarayıcınız ve internet bağlantınız üzerinden en yüksek kalitede (4K, 1080p, MP3) indirmenizi sağlayan istemci taraflı (client-side) açık kaynaklı bir medya aracıdır.

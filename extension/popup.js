@@ -1,6 +1,6 @@
 // NimTube Bridge Minimal Popup Script
 
-const DEFAULT_APP_URL = 'https://nimtube.2615.us';
+const DEFAULT_APP_URL = 'https://nimtube.tr';
 
 document.addEventListener('DOMContentLoaded', async () => {
   const ytWrap = document.getElementById('yt-wrap');

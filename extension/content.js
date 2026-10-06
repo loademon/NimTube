@@ -4,8 +4,7 @@
 if (
   window.location.hostname.includes('localhost') ||
   window.location.hostname.includes('127.0.0.1') ||
-  window.location.hostname.includes('2615.us') ||
-  window.location.hostname.includes('loademon.com.tr')
+  window.location.hostname.includes('nimtube.tr')
 ) {
   try {
     chrome.storage?.local?.set({ nimtubeAppUrl: window.location.origin });
@@ -16,7 +15,7 @@ function getExtensionVersion() {
   try {
     return chrome.runtime.getManifest().version;
   } catch (e) {
-    return '1.0.9';
+    return '1.1.0';
   }
 }
 
@@ -189,7 +188,7 @@ if (window.location.hostname.includes('youtube.com')) {
         const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/);
         
         chrome.storage?.local?.get(['nimtubeAppUrl'], (res) => {
-          const baseUrl = (res && res.nimtubeAppUrl) ? res.nimtubeAppUrl : 'https://nimtube.2615.us';
+          const baseUrl = (res && res.nimtubeAppUrl) ? res.nimtubeAppUrl : 'https://nimtube.tr';
           const cleanBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
           const targetUrl = match 
             ? `${cleanBase}?v=${match[1]}` 

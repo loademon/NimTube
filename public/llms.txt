@@ -4,18 +4,19 @@
 
 ## Features
 
-- [Video Downloader](https://nimtube.2615.us/): Download videos up to 4K 60fps directly on the client-side.
-- [Audio Extractor](https://nimtube.2615.us/): Extract and save audio to M4A (AAC) or WebM (Opus) locally.
-- [NimTube Bridge](https://nimtube.2615.us/?view=extension): Companion Chrome extension to download directly using your own IP address without server limits.
+- [Video Downloader](https://nimtube.tr/): Download videos up to 4K 60fps directly on the client-side.
+- [Audio Extractor](https://nimtube.tr/): Extract and save audio to M4A (AAC) or WebM (Opus) locally.
+- [NimTube Bridge](https://nimtube.tr/?view=extension): Companion Chrome extension to download directly using your own IP address without server limits.
 
 ## Technology
 
-- [Technical Architecture](https://nimtube.2615.us/?view=how-it-works): In-depth breakdown of Innertube API, 4x parallel workers, and client-side streaming.
-- [Mediabunny Core](https://nimtube.2615.us/?view=how-it-works): High-performance client-side lossless media multiplexing with 64-bit Mediabunny & WebCodecs GPU.
+- [Technical Architecture](https://nimtube.tr/?view=how-it-works): In-depth breakdown of Innertube API, streaming remux, and client-side streaming.
+- [Mediabunny Core](https://nimtube.tr/?view=how-it-works): High-performance client-side lossless media multiplexing with 64-bit Mediabunny & WebCodecs GPU.
 
 ## Links
 
-- [Home Page](https://nimtube.2615.us/): Main web application.
-- [How It Works](https://nimtube.2615.us/?view=how-it-works): Technical architecture and protocol documentation.
-- [Extension Guide](https://nimtube.2615.us/?view=extension): Chrome extension installation guide.
+- [Home Page](https://nimtube.tr/): Main web application.
+- [How It Works](https://nimtube.tr/?view=how-it-works): Technical architecture and protocol documentation.
+- [Extension Guide](https://nimtube.tr/?view=extension): Chrome extension installation guide.
+- [Release Notes](https://nimtube.tr/?view=releases): Version history and updates.
 - [GitHub Repository](https://github.com/loademon/NimTube): Source code and documentation.

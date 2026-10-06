@@ -1,10 +1,10 @@
 # NimTube — Pure Client-Side YouTube Studio & Downloader
 
-[![Live Web App](https://img.shields.io/badge/Live%20App-nimtube.2615.us-E62117?style=flat&logo=youtube&logoColor=white)](https://nimtube.2615.us/)
-[![VirusTotal Clean](https://img.shields.io/badge/VirusTotal-0%2F62%20Clean-emerald?style=flat&logo=virustotal)](https://www.virustotal.com/gui/file/e5847a7e2cc76256fe556dc03004b93dbc757f8fad922ff9d078242ad54d406d/detection)
+[![Live Web App](https://img.shields.io/badge/Live%20App-nimtube.tr-E62117?style=flat&logo=youtube&logoColor=white)](https://nimtube.tr/)
+[![VirusTotal Clean](https://img.shields.io/badge/VirusTotal-0%2F62%20Clean-emerald?style=flat&logo=virustotal)](https://www.virustotal.com/gui/file/438aa88191a73af30bb32cdb80749abf78035b21051647c4e208bea19009868a/detection)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-> 🌐 **Canlı Web Sitesi (Live Site):** [https://nimtube.2615.us/](https://nimtube.2615.us/)  
+> 🌐 **Canlı Web Sitesi (Live Site):** [https://nimtube.tr/](https://nimtube.tr/)  
 > **NimTube**, YouTube videolarını ve ses akışlarını harici bir sunucuya ihtiyaç duymadan, doğrudan kendi tarayıcınız ve internet bağlantınız üzerinden en yüksek kalitede (4K, 1080p, MP3) indirmenizi sağlayan istemci taraflı (client-side) açık kaynaklı bir medya aracıdır.
 
 ---
@@ -79,9 +79,15 @@ YouTube indirme araçları Google'ın mağaza politikaları gereği Chrome Web M
 
 ## Güvenlik ve Gizlilik
 
+<<<<<<< HEAD
 [![VirusTotal Scan: 0/62 Clean](public/guide/virustotal-report.png)](https://www.virustotal.com/gui/file/e5847a7e2cc76256fe556dc03004b93dbc757f8fad922ff9d078242ad54d406d/detection)
 
 - **Otomatik CI/CD Güvenlik Doğrulaması:** GitHub Actions (`.github/workflows/ci.yml`), her kod değişiminde eklenti zip'ini derler, SHA-256 hash'ini hesaplar ve VirusTotal API v3 (`/api/v3/files/{id}`) üzerinden otomatik olarak tarama sonucunu teyit eder. [Resmi VirusTotal Raporunu İncele](https://www.virustotal.com/gui/file/e5847a7e2cc76256fe556dc03004b93dbc757f8fad922ff9d078242ad54d406d/detection).
+=======
+[![VirusTotal Scan: 0/62 Clean](public/guide/virustotal-report.png)](https://www.virustotal.com/gui/file/438aa88191a73af30bb32cdb80749abf78035b21051647c4e208bea19009868a/detection)
+
+- **Otomatik CI/CD Güvenlik Doğrulaması:** GitHub Actions (`.github/workflows/ci.yml`), her kod değişiminde eklenti zip'ini derler, SHA-256 hash'ini hesaplar ve VirusTotal API v3 (`/api/v3/files/{id}`) üzerinden otomatik olarak tarama sonucunu teyit eder. [Resmi VirusTotal Raporunu İncele](https://www.virustotal.com/gui/file/438aa88191a73af30bb32cdb80749abf78035b21051647c4e208bea19009868a/detection).
+>>>>>>> 2717747 (chore: migrate official domain to nimtube.tr and bump version to v1.1.0)
 - Eklenti yalnızca `*.youtube.com` ve `*.googlevideo.com` alan adlarına erişim izni ister.
 - Tarayıcı geçmişinize, çerezlerinize, şifrelerinize veya diğer sekmelerinize kesinlikle erişmez.
 - Hiçbir analitik, telemetri veya üçüncü parti izleyici içermez.

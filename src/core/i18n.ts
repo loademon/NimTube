@@ -218,6 +218,17 @@ export const translations = {
       back: 'Geri Dön',
       releases: [
         {
+          version: 'v1.1.0',
+          date: '6 Ekim 2026',
+          title: 'Resmi Alan Adı (nimtube.tr) & Eklenti Senkronizasyonu',
+          summary: 'NimTube tüm servisleri, eklenti izinleri ve SEO yapılandırmalarıyla resmi nimtube.tr alan adına taşındı.',
+          changes: [
+            'Resmi Alan Adı Geçişi: Eski alan adı referansları kaldırılarak tüm sistem ve SEO altyapısı doğrudan nimtube.tr adresine taşındı.',
+            'NimTube Bridge v1.1.0 Güncellemesi: Eklenti izinleri ve arka plan yönlendirmeleri nimtube.tr alan adı ile tam uyumlu hale getirildi.',
+            'Site ve Eklenti Sürüm Eşitlemesi: Tarayıcı köprüsü ile web uygulaması sürüm kontrolü v1.1.0 seviyesinde eşitlendi.',
+          ],
+        },
+        {
           version: 'v1.0.9',
           date: '5 Ekim 2026',
           title: 'Canlı Birleştirerek İndirme & Bellek Optimizasyonu',
@@ -269,7 +280,7 @@ export const translations = {
       ],
     },
     footer: {
-      text: 'NimTube v1.0.9 for nimnim | powered by',
+      text: 'NimTube v1.1.0 for nimnim | powered by',
     },
   },
   en: {
@@ -489,6 +500,17 @@ export const translations = {
       back: 'Back',
       releases: [
         {
+          version: 'v1.1.0',
+          date: 'October 6, 2026',
+          title: 'Official Domain (nimtube.tr) & Extension Synchronization',
+          summary: 'NimTube migrated all services, extension permissions, and SEO configurations to the official nimtube.tr domain.',
+          changes: [
+            'Official Domain Migration: Consolidated all services, metadata, and SEO infrastructure under the official nimtube.tr domain.',
+            'NimTube Bridge v1.1.0: Updated extension host permissions, content scripts, and routing to nimtube.tr.',
+            'Version Synchronization: Synchronized web application and browser extension bridge versioning at v1.1.0.',
+          ],
+        },
+        {
           version: 'v1.0.9',
           date: 'October 5, 2026',
           title: 'Streaming Remux & Direct-to-Disk Architecture',
@@ -540,7 +562,7 @@ export const translations = {
       ],
     },
     footer: {
-      text: 'NimTube v1.0.9 for nimnim | powered by',
+      text: 'NimTube v1.1.0 for nimnim | powered by',
     },
   },
 };

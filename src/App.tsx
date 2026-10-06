@@ -474,15 +474,9 @@ export const App: React.FC = () => {
 
       {/* Footer */}
       <footer className="w-full py-5 text-center text-xs text-zinc-400 font-normal border-t border-zinc-800/40 light:border-zinc-200 flex items-center justify-center gap-3">
-        <span>NimTube for nimnim | powered by </span>
-        <a
-          href="https://who.loademon.com.tr/"
-          target="_blank"
-          rel="noreferrer"
-          className="text-zinc-300 light:text-zinc-700 hover:text-white light:hover:text-black underline transition-colors"
-        >
-          loademon
-        </a>
+        <span>
+          NimTube for nimnim | powered by <span className="text-zinc-300 light:text-zinc-700">loademon</span>
+        </span>
         <span>•</span>
         <button
           onClick={() => {

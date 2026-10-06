@@ -1,7 +1,7 @@
 # NimTube — Pure Client-Side YouTube Studio & Downloader
 
 [![Live Web App](https://img.shields.io/badge/Live%20App-nimtube.tr-E62117?style=flat&logo=youtube&logoColor=white)](https://nimtube.tr/)
-[![VirusTotal Clean](https://img.shields.io/badge/VirusTotal-0%2F62%20Clean-emerald?style=flat&logo=virustotal)](https://www.virustotal.com/gui/file/4d852390c9923995be991155e407f1f242a78e3198f428e50e73bf0635c322e3/detection)
+[![VirusTotal Clean](https://img.shields.io/badge/VirusTotal-0%2F62%20Clean-emerald?style=flat&logo=virustotal)](https://www.virustotal.com/gui/file/9a06f5a6189d2829cdf25206570618fceef6ef022219f6d0f920594b1b644342/detection)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 > 🌐 **Canlı Web Sitesi (Live Site):** [https://nimtube.tr/](https://nimtube.tr/)  
@@ -79,9 +79,9 @@ YouTube indirme araçları Google'ın mağaza politikaları gereği Chrome Web M
 
 ## Güvenlik ve Gizlilik
 
-[![VirusTotal Scan: 0/65 Clean](public/guide/virustotal-report.png)](https://www.virustotal.com/gui/file/4d852390c9923995be991155e407f1f242a78e3198f428e50e73bf0635c322e3/detection)
+[![VirusTotal Scan: 0/65 Clean](public/guide/virustotal-report.png)](https://www.virustotal.com/gui/file/9a06f5a6189d2829cdf25206570618fceef6ef022219f6d0f920594b1b644342/detection)
 
-- **Otomatik CI/CD Güvenlik Doğrulaması:** GitHub Actions (`.github/workflows/ci.yml`), her kod değişiminde eklenti zip'ini derler, SHA-256 hash'ini hesaplar ve VirusTotal API v3 (`/api/v3/files/{id}`) üzerinden otomatik olarak tarama sonucunu teyit eder. [Resmi VirusTotal Raporunu İncele](https://www.virustotal.com/gui/file/4d852390c9923995be991155e407f1f242a78e3198f428e50e73bf0635c322e3/detection).
+- **Otomatik CI/CD Güvenlik Doğrulaması:** GitHub Actions (`.github/workflows/ci.yml`), her kod değişiminde eklenti zip'ini derler, SHA-256 hash'ini hesaplar ve VirusTotal API v3 (`/api/v3/files/{id}`) üzerinden otomatik olarak tarama sonucunu teyit eder. [Resmi VirusTotal Raporunu İncele](https://www.virustotal.com/gui/file/9a06f5a6189d2829cdf25206570618fceef6ef022219f6d0f920594b1b644342/detection).
 - Eklenti yalnızca `*.youtube.com` ve `*.googlevideo.com` alan adlarına erişim izni ister.
 - Tarayıcı geçmişinize, çerezlerinize, şifrelerinize veya diğer sekmelerinize kesinlikle erişmez.
 - Hiçbir analitik, telemetri veya üçüncü parti izleyici içermez.

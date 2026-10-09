@@ -137,9 +137,9 @@ YouTube indirme araçları Google'ın mağaza politikaları gereği Chrome Web M
 
 - **Otomatik CI/CD Güvenlik Doğrulaması:** GitHub Actions (`.github/workflows/ci.yml`), her kod değişiminde eklenti zip'ini derler, SHA-256 hash'ini hesaplar ve VirusTotal API v3 (`/api/v3/files/{id}`) üzerinden otomatik olarak tarama sonucunu teyit eder. [Resmi VirusTotal Raporunu İncele](https://www.virustotal.com/gui/file/9a06f5a6189d2829cdf25206570618fceef6ef022219f6d0f920594b1b644342/detection).
 =======
-[![VirusTotal Scan: 0/65 Clean](public/guide/virustotal-report.png)](https://www.virustotal.com/gui/file/24de5ba77ec26ed7f1bb006765942762e44999d234d0361ef1f9485886c60f50/detection)
+[![VirusTotal Scan: 0/65 Clean](public/guide/virustotal-report.png)](https://www.virustotal.com/gui/file/9a06f5a6189d2829cdf25206570618fceef6ef022219f6d0f920594b1b644342/detection)
 
-- **Otomatik CI/CD Güvenlik Doğrulaması:** GitHub Actions (`.github/workflows/ci.yml`), her kod değişiminde eklenti zip'ini derler, SHA-256 hash'ini hesaplar ve VirusTotal API v3 (`/api/v3/files/{id}`) üzerinden otomatik olarak tarama sonucunu teyit eder. [Resmi VirusTotal Raporunu İncele](https://www.virustotal.com/gui/file/24de5ba77ec26ed7f1bb006765942762e44999d234d0361ef1f9485886c60f50/detection).
+- **Otomatik CI/CD Güvenlik Doğrulaması:** GitHub Actions (`.github/workflows/ci.yml`), her kod değişiminde eklenti zip'ini derler, SHA-256 hash'ini hesaplar ve VirusTotal API v3 (`/api/v3/files/{id}`) üzerinden otomatik olarak tarama sonucunu teyit eder. [Resmi VirusTotal Raporunu İncele](https://www.virustotal.com/gui/file/9a06f5a6189d2829cdf25206570618fceef6ef022219f6d0f920594b1b644342/detection).
 >>>>>>> e1a7547 (docs: add detailed roadmap and future plans to README)
 - Eklenti yalnızca `*.youtube.com` ve `*.googlevideo.com` alan adlarına erişim izni ister.
 - Tarayıcı geçmişinize, çerezlerinize, şifrelerinize veya diğer sekmelerinize kesinlikle erişmez.
